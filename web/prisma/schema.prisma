@@ -1,0 +1,484 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Auth / Users ────────────────────────────────────────
+
+model User {
+  id             String    @id @default(auto()) @map("_id") @db.ObjectId
+  email          String    @unique
+  name           String
+  passwordHash   String
+  role           UserRole  @default(receptionist)
+  isActive       Boolean   @default(true)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  doctor         Doctor?
+}
+
+enum UserRole {
+  super_admin
+  hospital_admin
+  receptionist
+  doctor
+  nurse
+  lab_technician
+  pharmacist
+  billing_staff
+}
+
+// ─── Patients ────────────────────────────────────────────
+
+model Patient {
+  id                    String   @id @default(auto()) @map("_id") @db.ObjectId
+  uhid                  String   @unique
+  name                  String
+  mobile                String
+  gender                Gender
+  dateOfBirth           DateTime?
+  age                   Int?
+  address               String
+  bloodGroup            BloodGroup?
+  emergencyContact      String?
+  emergencyContactNumber String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  appointments          Appointment[]
+  consultations         Consultation[]
+  prescriptions         Prescription[]
+  labOrders             LabOrder[]
+  admissions            Admission[]
+  invoices              Invoice[]
+}
+
+enum Gender {
+  male
+  female
+  other
+}
+
+enum BloodGroup {
+  A_positive
+  A_negative
+  B_positive
+  B_negative
+  AB_positive
+  AB_negative
+  O_positive
+  O_negative
+}
+
+// ─── Departments ─────────────────────────────────────────
+
+model Department {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  name        String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  doctors     Doctor[]
+  appointments Appointment[]
+}
+
+// ─── Doctors ─────────────────────────────────────────────
+
+model Doctor {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId          String   @unique @db.ObjectId
+  departmentId    String   @db.ObjectId
+  specialization  String
+  qualification   String
+  available       Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user            User     @relation(fields: [userId], references: [id])
+  department      Department @relation(fields: [departmentId], references: [id])
+  appointments    Appointment[]
+  consultations   Consultation[]
+  prescriptions   Prescription[]
+  labOrders       LabOrder[]
+  admissions      Admission[]
+}
+
+// ─── Appointments ────────────────────────────────────────
+
+model Appointment {
+  id                String            @id @default(auto()) @map("_id") @db.ObjectId
+  patientId         String            @db.ObjectId
+  doctorId          String            @db.ObjectId
+  departmentId      String            @db.ObjectId
+  date              DateTime
+  time              String
+  consultationType  ConsultationType  @default(new)
+  status            AppointmentStatus @default(scheduled)
+  appointmentNumber String            @unique
+  tokenNumber       Int
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  patient           Patient           @relation(fields: [patientId], references: [id])
+  doctor            Doctor            @relation(fields: [doctorId], references: [id])
+  department        Department        @relation(fields: [departmentId], references: [id])
+  consultation      Consultation?
+  invoices          Invoice[]
+}
+
+enum ConsultationType {
+  new
+  follow_up
+}
+
+enum AppointmentStatus {
+  scheduled
+  waiting
+  in_progress
+  completed
+  cancelled
+}
+
+// ─── Consultations ───────────────────────────────────────
+
+model Consultation {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  appointmentId   String?  @unique @db.ObjectId
+  patientId       String   @db.ObjectId
+  doctorId        String   @db.ObjectId
+  chiefComplaint  String
+  symptoms        String
+  diagnosis       String
+  temperature     Float?
+  bloodPressure   String?
+  pulse           Int?
+  respiratoryRate Int?
+  oxygenSaturation Int?
+  weight          Float?
+  height          Float?
+  clinicalNotes   String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  appointment     Appointment? @relation(fields: [appointmentId], references: [id])
+  patient         Patient     @relation(fields: [patientId], references: [id])
+  doctor          Doctor      @relation(fields: [doctorId], references: [id])
+  prescription    Prescription?
+  labOrders       LabOrder[]
+}
+
+// ─── Medicines ───────────────────────────────────────────
+
+model Medicine {
+  id             String   @id @default(auto()) @map("_id") @db.ObjectId
+  name           String   @unique
+  genericName    String?
+  manufacturer   String?
+  category       String?
+  stock          Int      @default(0)
+  unit           String
+  price          Float
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  prescriptionItems PrescriptionMedicine[]
+}
+
+// ─── Prescriptions ───────────────────────────────────────
+
+model Prescription {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  consultationId  String?  @unique @db.ObjectId
+  patientId       String   @db.ObjectId
+  doctorId        String   @db.ObjectId
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  consultation    Consultation? @relation(fields: [consultationId], references: [id])
+  patient         Patient      @relation(fields: [patientId], references: [id])
+  doctor          Doctor       @relation(fields: [doctorId], references: [id])
+  medicines       PrescriptionMedicine[]
+}
+
+model PrescriptionMedicine {
+  id              String       @id @default(auto()) @map("_id") @db.ObjectId
+  prescriptionId  String       @db.ObjectId
+  medicineId      String       @db.ObjectId
+  medicineName    String
+  dose            String
+  frequency       String
+  duration        String
+  instructions    String?
+  createdAt       DateTime     @default(now())
+
+  prescription    Prescription @relation(fields: [prescriptionId], references: [id])
+  medicine        Medicine     @relation(fields: [medicineId], references: [id])
+}
+
+// ─── Lab Tests ───────────────────────────────────────────
+
+model LabTest {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  name        String   @unique
+  category    String
+  price       Float
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// ─── Lab Orders ──────────────────────────────────────────
+
+model LabOrder {
+  id              String         @id @default(auto()) @map("_id") @db.ObjectId
+  patientId       String         @db.ObjectId
+  consultationId  String?        @db.ObjectId
+  doctorId        String         @db.ObjectId
+  orderNumber     String         @unique
+  status          LabOrderStatus @default(pending)
+  orderedAt       DateTime       @default(now())
+  completedAt     DateTime?
+
+  patient         Patient        @relation(fields: [patientId], references: [id])
+  consultation    Consultation?  @relation(fields: [consultationId], references: [id])
+  doctor          Doctor         @relation(fields: [doctorId], references: [id])
+  tests           LabOrderTest[]
+  report          LabReport?
+}
+
+enum LabOrderStatus {
+  pending
+  in_progress
+  completed
+}
+
+model LabOrderTest {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  labOrderId  String   @db.ObjectId
+  labTestId   String   @db.ObjectId
+  testName    String
+  price       Float
+
+  labOrder    LabOrder @relation(fields: [labOrderId], references: [id])
+}
+
+// ─── Lab Reports ─────────────────────────────────────────
+
+model LabReport {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  labOrderId      String   @unique @db.ObjectId
+  results         Json
+  uploadedAt      DateTime @default(now())
+  uploadedBy      String
+
+  labOrder        LabOrder @relation(fields: [labOrderId], references: [id])
+}
+
+// ─── Wards / Rooms / Beds ────────────────────────────────
+
+model Ward {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  name      String   @unique
+  type      WardType
+  floor     Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  rooms     Room[]
+  admissions Admission[]
+}
+
+enum WardType {
+  general
+  icu
+  emergency
+  private
+}
+
+model Room {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  wardId        String   @db.ObjectId
+  roomNumber    String   @unique
+  type          RoomType
+  bedCount      Int
+  chargesPerDay Float
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  ward          Ward     @relation(fields: [wardId], references: [id])
+  beds          Bed[]
+  admissions    Admission[]
+}
+
+enum RoomType {
+  general
+  private
+  semi_private
+}
+
+model Bed {
+  id                String    @id @default(auto()) @map("_id") @db.ObjectId
+  roomId            String    @db.ObjectId
+  bedNumber         String
+  status            BedStatus @default(available)
+  currentPatientId  String?   @db.ObjectId
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  room              Room      @relation(fields: [roomId], references: [id])
+  admission         Admission?
+}
+
+enum BedStatus {
+  available
+  occupied
+  maintenance
+}
+
+// ─── Admissions ──────────────────────────────────────────
+
+model Admission {
+  id                String          @id @default(auto()) @map("_id") @db.ObjectId
+  patientId         String          @db.ObjectId
+  doctorId          String          @db.ObjectId
+  wardId            String          @db.ObjectId
+  roomId            String          @db.ObjectId
+  bedId             String          @unique @db.ObjectId
+  admissionNumber   String          @unique
+  admissionDate     DateTime        @default(now())
+  dischargeDate     DateTime?
+  status            AdmissionStatus @default(admitted)
+  dischargeSummary  String?
+  finalDiagnosis    String?
+  followUpDate      DateTime?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  patient           Patient         @relation(fields: [patientId], references: [id])
+  doctor            Doctor          @relation(fields: [doctorId], references: [id])
+  ward              Ward            @relation(fields: [wardId], references: [id])
+  room              Room            @relation(fields: [roomId], references: [id])
+  bed               Bed             @relation(fields: [bedId], references: [id])
+  dailyRounds       DailyRound[]
+  invoices          Invoice[]
+}
+
+enum AdmissionStatus {
+  admitted
+  discharged
+}
+
+// ─── Daily Rounds (IPD) ──────────────────────────────────
+
+model DailyRound {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  admissionId     String   @db.ObjectId
+  date            DateTime @default(now())
+  temperature     Float?
+  bloodPressure   String?
+  pulse           Int?
+  respiratoryRate Int?
+  oxygenSaturation Int?
+  notes           String
+  doctorId        String   @db.ObjectId
+  createdAt       DateTime @default(now())
+
+  admission       Admission @relation(fields: [admissionId], references: [id])
+}
+
+// ─── Billing ─────────────────────────────────────────────
+
+model Invoice {
+  id            String        @id @default(auto()) @map("_id") @db.ObjectId
+  patientId     String        @db.ObjectId
+  admissionId   String?       @db.ObjectId
+  appointmentId String?       @db.ObjectId
+  invoiceNumber String        @unique
+  type          InvoiceType
+  subtotal      Float
+  tax           Float
+  discount      Float
+  total         Float
+  status        InvoiceStatus @default(pending)
+  createdAt     DateTime      @default(now())
+  paidAt        DateTime?
+
+  patient       Patient       @relation(fields: [patientId], references: [id])
+  admission     Admission?    @relation(fields: [admissionId], references: [id])
+  appointment   Appointment?  @relation(fields: [appointmentId], references: [id])
+  items         InvoiceItem[]
+  payments      Payment[]
+}
+
+enum InvoiceType {
+  OPD
+  IPD
+}
+
+enum InvoiceStatus {
+  pending
+  partial
+  paid
+  cancelled
+}
+
+model InvoiceItem {
+  id          String      @id @default(auto()) @map("_id") @db.ObjectId
+  invoiceId   String      @db.ObjectId
+  description String
+  quantity    Int
+  unitPrice   Float
+  total       Float
+  type        ItemType
+
+  invoice     Invoice     @relation(fields: [invoiceId], references: [id])
+}
+
+enum ItemType {
+  service
+  medicine
+  lab
+  room
+  other
+}
+
+// ─── Payments ────────────────────────────────────────────
+
+model Payment {
+  id              String        @id @default(auto()) @map("_id") @db.ObjectId
+  invoiceId       String        @db.ObjectId
+  amount          Float
+  method          PaymentMethod
+  transactionId   String?
+  paidAt          DateTime      @default(now())
+  receivedBy      String
+
+  invoice         Invoice       @relation(fields: [invoiceId], references: [id])
+}
+
+enum PaymentMethod {
+  cash
+  card
+  upi
+  bank_transfer
+  insurance
+}
+
+// ─── Services Catalog ────────────────────────────────────
+
+model Service {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  name        String   @unique
+  category    String
+  price       Float
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}

@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Plus, Calendar, Clock, User, Stethoscope, Loader2, CalendarX } from 'lucide-react'
+import { Plus, Calendar, Clock, User, Stethoscope, Loader2, CalendarX, Edit } from 'lucide-react'
 import Link from 'next/link'
 import { useToast } from '@/components/ui/toast'
 
@@ -156,6 +156,13 @@ export default function AppointmentsPage() {
                       <Badge variant={getStatusColor(appointment.status) as "default" | "secondary" | "destructive" | "outline" | "success" | "warning"}>
                         {appointment.status.replace('_', ' ')}
                       </Badge>
+                      {(appointment.status === 'scheduled' || appointment.status === 'waiting') && (
+                        <Link href={`/appointments/${appointment.id}/edit`}>
+                          <Button variant="ghost" size="sm" className="mt-2">
+                            <Edit className="mr-1 h-3 w-3" /> Edit
+                          </Button>
+                        </Link>
+                      )}
                     </div>
                   </div>
                 </CardContent>

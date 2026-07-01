@@ -28,13 +28,20 @@ export async function POST(request: NextRequest) {
 
     // 1. Consultation Fee
     const consultationFeeService = await prisma.service.findFirst({
-      where: { name: { equals: "Consultation Fee", mode: "insensitive" }, isActive: true },
+      where: {
+        isActive: true,
+        name: { contains: "consultation", mode: "insensitive" },
+      },
     })
-    if (consultationFeeService) {
+    const consultationFeeItem = consultationFeeService && (
+      consultationFeeService.name.toLowerCase().includes("fee") ||
+      consultationFeeService.name.toLowerCase() === "consultation"
+    ) ? consultationFeeService : null
+    if (consultationFeeItem) {
       items.push({
         description: `Consultation - Dr. ${consultation.doctor.user.name}`,
         quantity: 1,
-        unitPrice: consultationFeeService.price,
+        unitPrice: consultationFeeItem.price,
         type: "service",
       })
     }

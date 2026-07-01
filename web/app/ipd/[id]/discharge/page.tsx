@@ -9,11 +9,15 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { ArrowLeft, Loader2, FileText, Calendar, AlertTriangle, Plus, Trash2, IndianRupee, Receipt } from 'lucide-react'
+import { ArrowLeft, Loader2, FileText, Calendar, AlertTriangle, Plus, Trash2, IndianRupee, Receipt, Stethoscope } from 'lucide-react'
 import Link from 'next/link'
 import { useToast } from '@/components/ui/toast'
 
 type DischargeForm = { dischargeSummary: string; finalDiagnosis: string; followUpDate?: string }
+
+interface ServiceItem {
+  id: string; name: string; category: string; price: number; description?: string; isActive: boolean
+}
 
 interface ChargeItem {
   description: string
@@ -23,11 +27,12 @@ interface ChargeItem {
 }
 
 function ServiceAutocomplete({ value, onChange, onSelect, services }: {
-  value: string; onChange: (v: string) => void; onSelect: (svc: any) => void; services: any[]
+  value: string; onChange: (v: string) => void; onSelect: (svc: ServiceItem) => void; services: ServiceItem[]
 }) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState(value)
   const ref = useRef<HTMLDivElement>(null)
+  const justSelectedRef = useRef(false)
 
   useEffect(() => { setQuery(value) }, [value])
 
@@ -38,24 +43,29 @@ function ServiceAutocomplete({ value, onChange, onSelect, services }: {
   }, [])
 
   const filtered = query.length > 0
-    ? services.filter((s: any) => s.name.toLowerCase().includes(query.toLowerCase())).slice(0, 8)
+    ? services.filter((s) => s.name.toLowerCase().includes(query.toLowerCase())).slice(0, 8)
     : services.slice(0, 8)
 
   return (
     <div ref={ref} className="relative">
       <Input
         value={query}
-        onChange={e => { setQuery(e.target.value); onChange(e.target.value); setOpen(true) }}
+        onChange={e => {
+          if (justSelectedRef.current) { justSelectedRef.current = false; return }
+          setQuery(e.target.value)
+          onChange(e.target.value)
+          setOpen(true)
+        }}
         onFocus={() => setOpen(true)}
         placeholder="Type to search services or enter custom..."
         className="h-9"
       />
       {open && filtered.length > 0 && (
         <div className="absolute z-20 w-full mt-1 bg-white border rounded-md shadow-lg max-h-48 overflow-auto">
-          {filtered.map((s: any) => (
+          {filtered.map((s) => (
             <div key={s.id}
               className="px-3 py-2 hover:bg-blue-50 cursor-pointer flex justify-between text-sm"
-              onMouseDown={() => { onSelect(s); setQuery(s.name); setOpen(false) }}>
+              onMouseDown={() => { justSelectedRef.current = true; onSelect(s); setQuery(s.name); setOpen(false) }}>
               <span>{s.name}</span>
               <span className="text-gray-500">₹{s.price}</span>
             </div>
@@ -73,9 +83,10 @@ export default function DischargePage() {
   const [admission, setAdmission] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [services, setServices] = useState<any[]>([])
+  const [services, setServices] = useState<ServiceItem[]>([])
   const [extraCharges, setExtraCharges] = useState<ChargeItem[]>([])
-  const [createdInvoice, setCreatedInvoice] = useState<any>(null)
+  const [createdInvoice, setCreatedInvoice] = useState<Record<string, unknown> | null>(null)
+  const [serviceSearch, setServiceSearch] = useState('')
 
   const { register, handleSubmit, formState: { errors } } = useForm<DischargeForm>({
     resolver: zodResolver(dischargeSchema),
@@ -119,6 +130,16 @@ export default function DischargePage() {
     setExtraCharges(updated)
   }
 
+  const addServiceAsCharge = (svc: ServiceItem) => {
+    setExtraCharges([...extraCharges, { description: svc.name, quantity: 1, unitPrice: svc.price, type: 'service' }])
+    toast(`${svc.name} added to charges`, 'success')
+  }
+
+  const filteredServices = services.filter(s =>
+    s.name.toLowerCase().includes(serviceSearch.toLowerCase()) ||
+    s.category.toLowerCase().includes(serviceSearch.toLowerCase())
+  )
+
   const handleDischarge = async (data: DischargeForm) => {
     setSaving(true)
     try {
@@ -155,6 +176,9 @@ export default function DischargePage() {
   if (loading) return <div className="flex items-center justify-center h-96"><Loader2 className="h-8 w-8 animate-spin text-gray-400" /></div>
   if (!admission) return <div className="p-8 text-center text-red-500">Admission not found</div>
   if (createdInvoice) {
+    const invId = String(createdInvoice.id)
+    const invNumber = String(createdInvoice.invoiceNumber)
+    const invTotal = Number(createdInvoice.total)
     return (
       <div className="p-8">
         <div className="mb-6">
@@ -164,13 +188,13 @@ export default function DischargePage() {
           <CardContent className="p-8 text-center">
             <Receipt className="h-16 w-16 text-green-600 mx-auto mb-4" />
             <h2 className="text-2xl font-bold text-gray-900 mb-2">Patient Discharged!</h2>
-            <p className="text-gray-600 mb-4">Invoice {createdInvoice.invoiceNumber} generated</p>
-            <p className="text-3xl font-bold text-green-700 mb-6">₹{createdInvoice.total.toLocaleString()}</p>
+            <p className="text-gray-600 mb-4">Invoice {invNumber} generated</p>
+            <p className="text-3xl font-bold text-green-700 mb-6">₹{invTotal.toLocaleString()}</p>
             <div className="flex gap-3 justify-center">
-              <Link href={`/billing/${createdInvoice.id}/payment`}>
+              <Link href={`/billing/${invId}/payment`}>
                 <Button>Pay Now</Button>
               </Link>
-              <Link href={`/billing/${createdInvoice.id}/receipt`}>
+              <Link href={`/billing/${invId}/receipt`}>
                 <Button variant="outline"><FileText className="mr-2 h-4 w-4" /> Receipt</Button>
               </Link>
               <Link href="/ipd">
@@ -211,6 +235,28 @@ export default function DischargePage() {
                     <label className="text-sm font-medium flex items-center gap-1"><IndianRupee className="h-3 w-3" /> Additional Charges</label>
                     <Button type="button" size="sm" variant="outline" onClick={addCharge}><Plus className="mr-1 h-3 w-3" /> Add</Button>
                   </div>
+
+                  {/* Service Catalog */}
+                  <div className="mb-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Stethoscope className="h-4 w-4 text-blue-500" />
+                      <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">All Services ({services.length})</span>
+                    </div>
+                    <Input placeholder="Search services..." value={serviceSearch} onChange={e => setServiceSearch(e.target.value)} className="h-8 text-xs" />
+                    {filteredServices.length > 0 && (
+                      <div className="mt-2 flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
+                        {filteredServices.map(s => (
+                          <button key={s.id} type="button" onClick={() => addServiceAsCharge(s)}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 hover:bg-blue-100 hover:text-blue-700 border border-gray-200 hover:border-blue-300 transition-colors cursor-pointer">
+                            <span>{s.name}</span>
+                            <span className="text-gray-400">₹{s.price}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Charge Rows */}
                   {extraCharges.length > 0 && (
                     <div className="space-y-2">
                       {extraCharges.map((charge, i) => (

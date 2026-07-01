@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { z } from "zod"
+import { getToken } from "next-auth/jwt"
 
 const serviceUpdateSchema = z.object({
   name: z.string().min(1).optional(),
@@ -9,6 +10,14 @@ const serviceUpdateSchema = z.object({
   description: z.string().optional().or(z.literal("")),
   isActive: z.boolean().optional(),
 })
+
+async function requireAdmin(request: NextRequest) {
+  const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET })
+  if (!token || !["super_admin", "hospital_admin"].includes(token.role as string)) {
+    return NextResponse.json({ error: "Only admins can modify services" }, { status: 403 })
+  }
+  return null
+}
 
 export async function GET(
   _request: NextRequest,
@@ -29,6 +38,9 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const adminCheck = await requireAdmin(request)
+    if (adminCheck) return adminCheck
+
     const { id } = await params
     const body = await request.json()
     const parsed = serviceUpdateSchema.safeParse(body)
@@ -38,7 +50,7 @@ export async function PUT(
 
     const { description, ...data } = parsed.data
     
-    const updateData: any = { ...data }
+    const updateData: Record<string, unknown> = { ...data }
     if (description !== undefined) updateData.description = description || null
 
     const service = await prisma.service.update({
@@ -57,6 +69,9 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const adminCheck = await requireAdmin(_request)
+    if (adminCheck) return adminCheck
+
     const { id } = await params
     await prisma.service.delete({ where: { id } })
     return NextResponse.json({ message: "Deleted" })

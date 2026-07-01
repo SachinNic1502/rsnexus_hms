@@ -7,7 +7,6 @@ const adminOnlyRoutes = [
   "/api/users",
   "/api/wards",
   "/api/beds",
-  "/api/services",
   "/api/medicines",
   "/api/lab-tests",
   "/api/rooms",

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { z } from "zod"
+import { getToken } from "next-auth/jwt"
 
 const serviceSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -24,6 +25,11 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+    const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET })
+    if (!token || !["super_admin", "hospital_admin"].includes(token.role as string)) {
+      return NextResponse.json({ error: "Only admins can create services" }, { status: 403 })
+    }
+
     const body = await request.json()
     const parsed = serviceSchema.safeParse(body)
     if (!parsed.success) {

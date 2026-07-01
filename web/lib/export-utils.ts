@@ -1,8 +1,8 @@
 import * as XLSX from 'xlsx'
 import jsPDF from 'jspdf'
-import 'jspdf-autotable'
+import autoTable from 'jspdf-autotable'
 
-export function exportToExcel(data: any[], filename: string, sheetName: string = 'Sheet1') {
+export function exportToExcel(data: Record<string, unknown>[], filename: string, sheetName: string = 'Sheet1') {
   const ws = XLSX.utils.json_to_sheet(data)
   const wb = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(wb, ws, sheetName)
@@ -12,7 +12,7 @@ export function exportToExcel(data: any[], filename: string, sheetName: string =
 export function exportToPDF(
   title: string,
   headers: string[],
-  rows: any[][],
+  rows: (string | number)[][],
   filename: string
 ) {
   const doc = new jsPDF()
@@ -23,7 +23,7 @@ export function exportToPDF(
   doc.setFontSize(10)
   doc.text(`Generated: ${new Date().toLocaleDateString('en-IN')}`, 14, 30)
 
-  ;(doc as any).autoTable({
+  autoTable(doc, {
     head: [headers],
     body: rows,
     startY: 35,

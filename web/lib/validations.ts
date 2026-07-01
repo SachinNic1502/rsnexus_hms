@@ -172,6 +172,15 @@ export const departmentSchema = z.object({
 })
 
 // ─── Doctor ──────────────────────────────────────────────
+export const doctorCreateSchema = z.object({
+  name: z.string().min(2, 'Name must be at least 2 characters'),
+  email: z.string().email('Invalid email address'),
+  password: z.string().min(6, 'Password must be at least 6 characters'),
+  departmentId: z.string().min(1, 'Department is required'),
+  specialization: z.string().min(1, 'Specialization is required'),
+  qualification: z.string().optional().or(z.literal('')),
+})
+
 export const doctorUpdateSchema = z.object({
   specialization: z.string().min(1, 'Specialization is required'),
   qualification: z.string().optional().or(z.literal('')),

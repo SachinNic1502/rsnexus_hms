@@ -153,7 +153,7 @@ export default function AppointmentsPage() {
                         <span className="font-medium">{appointment.time}</span>
                       </div>
                       <p className="text-sm text-gray-600 mb-2">{new Date(appointment.date).toLocaleDateString()}</p>
-                      <Badge variant={getStatusColor(appointment.status) as any}>
+                      <Badge variant={getStatusColor(appointment.status) as "default" | "secondary" | "destructive" | "outline" | "success" | "warning"}>
                         {appointment.status.replace('_', ' ')}
                       </Badge>
                     </div>

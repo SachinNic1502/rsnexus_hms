@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { ArrowLeft, Save, User, Phone, MapPin, Droplet, Loader2, Calendar, Stethoscope } from 'lucide-react'
 import Link from 'next/link'
-import { useForm } from 'react-hook-form'
+import { useForm, Resolver } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { patientSchema } from '@/lib/validations'
 import { useToast } from '@/components/ui/toast'
@@ -25,7 +25,7 @@ export default function NewPatientPage() {
   const [registeredPatient, setRegisteredPatient] = useState<{ id: string; uhid: string } | null>(null)
 
   const { register, handleSubmit, formState: { errors }, watch, setValue } = useForm<FormData>({
-    resolver: zodResolver(patientSchema) as any,
+    resolver: zodResolver(patientSchema) as unknown as Resolver<FormData>,
     defaultValues: { name: '', mobile: '', gender: '', dateOfBirth: '', age: '', address: '', bloodGroup: '', emergencyContact: '', emergencyContactNumber: '' },
   })
 

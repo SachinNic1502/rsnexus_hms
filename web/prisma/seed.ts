@@ -160,7 +160,7 @@ async function main() {
   console.log(`Created ${serviceData.length} services`)
 
   console.log("\nSeeding completed!")
-  console.log("Login with: admin@rsnexus.com / password")
+  console.log("Login with: admin@rsnexus.com / <password from .env>")
 }
 
 main()

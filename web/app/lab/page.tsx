@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Plus, TestTube, Loader2, FlaskConical } from 'lucide-react'
 import Link from 'next/link'
+import { useToast } from '@/components/ui/toast'
 
 interface LabOrder {
   id: string
@@ -19,6 +20,7 @@ interface LabOrder {
 }
 
 export default function LabPage() {
+  const { toast } = useToast()
   const [orders, setOrders] = useState<LabOrder[]>([])
   const [loading, setLoading] = useState(true)
   const [filterStatus, setFilterStatus] = useState('all')
@@ -32,7 +34,7 @@ export default function LabPage() {
       if (filterStatus !== 'all') params.set('status', filterStatus)
       const res = await fetch(`/api/lab-orders?${params}`)
       if (res.ok) { const data = await res.json(); setOrders(Array.isArray(data) ? data : []) }
-    } catch (error) { console.error(error) }
+    } catch { toast('Failed to fetch lab orders', 'error') }
     finally { setLoading(false) }
   }
 

@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { ArrowLeft, Download, Loader2, BedDouble, Bed, CheckCircle, AlertTriangle } from 'lucide-react'
 import Link from 'next/link'
 import { exportToExcel, exportToPDF } from '@/lib/export-utils'
+import { useToast } from '@/components/ui/toast'
 
 interface BedOccupancyReport {
   summary: {
@@ -51,6 +52,7 @@ interface BedOccupancyReport {
 }
 
 export default function BedOccupancyPage() {
+  const { toast } = useToast()
   const [report, setReport] = useState<BedOccupancyReport | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -61,7 +63,7 @@ export default function BedOccupancyPage() {
     try {
       const res = await fetch('/api/reports?type=bed-occupancy')
       if (res.ok) setReport(await res.json())
-    } catch (e) { console.error(e) }
+    } catch { toast('Failed to fetch report', 'error') }
     finally { setLoading(false) }
   }
 

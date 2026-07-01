@@ -5,8 +5,9 @@ import { useRouter } from 'next/navigation'
 import { useEffect } from 'react'
 import { Sidebar } from '@/components/sidebar'
 import { useToast } from '@/components/ui/toast'
+import { UserRole } from '@/types'
 
-const allowedRoles = ['super_admin', 'hospital_admin']
+const allowedRoles: UserRole[] = ['super_admin', 'hospital_admin']
 
 export default function SettingsLayout({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, hasRole } = useAuth()
@@ -16,13 +17,13 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
   useEffect(() => {
     if (!isAuthenticated) {
       router.push('/login')
-    } else if (!hasRole(allowedRoles as any)) {
+    } else if (!hasRole(allowedRoles)) {
       toast('You do not have permission to access Settings', 'error')
       router.push('/dashboard')
     }
   }, [isAuthenticated, hasRole, router, toast])
 
-  if (!isAuthenticated || !hasRole(allowedRoles as any)) {
+  if (!isAuthenticated || !hasRole(allowedRoles)) {
     return null
   }
 

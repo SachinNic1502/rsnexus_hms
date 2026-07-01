@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { ArrowLeft, Bed, BedDouble, Loader2, AlertTriangle, CheckCircle } from 'lucide-react'
 import Link from 'next/link'
+import { useToast } from '@/components/ui/toast'
 
 interface BedData {
   id: string
@@ -27,6 +28,7 @@ interface WardStats {
 }
 
 export default function BedDashboardPage() {
+  const { toast } = useToast()
   const [beds, setBeds] = useState<BedData[]>([])
   const [wardStats, setWardStats] = useState<WardStats[]>([])
   const [loading, setLoading] = useState(true)
@@ -44,7 +46,7 @@ export default function BedDashboardPage() {
       ])
       if (bedsRes.ok) { const data = await bedsRes.json(); setBeds(Array.isArray(data) ? data : []) }
       if (wardsRes.ok) { const data = await wardsRes.json(); setWardStats(Array.isArray(data) ? data : []) }
-    } catch (e) { console.error(e) }
+    } catch { toast('Failed to fetch bed data', 'error') }
     finally { setLoading(false) }
   }
 

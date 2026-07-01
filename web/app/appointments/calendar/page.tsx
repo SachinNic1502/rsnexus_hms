@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { ArrowLeft, ChevronLeft, ChevronRight, Calendar, Clock, User, Stethoscope, Loader2, Plus } from 'lucide-react'
 import Link from 'next/link'
+import { useToast } from '@/components/ui/toast'
 
 interface Appointment {
   id: string
@@ -37,6 +38,7 @@ const getStatusColor = (status: string) => {
 }
 
 export default function CalendarPage() {
+  const { toast } = useToast()
   const [currentDate, setCurrentDate] = useState(new Date())
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [loading, setLoading] = useState(true)
@@ -54,7 +56,7 @@ export default function CalendarPage() {
       const dateStr = currentDate.toISOString().split('T')[0]
       const res = await fetch(`/api/appointments?date=${dateStr}`)
       if (res.ok) setAppointments(await res.json())
-    } catch (e) { console.error(e) }
+    } catch { toast('Failed to fetch appointments', 'error') }
     finally { setLoading(false) }
   }
 
@@ -62,7 +64,7 @@ export default function CalendarPage() {
     try {
       const res = await fetch('/api/doctors')
       if (res.ok) setDoctors(await res.json())
-    } catch (e) { console.error(e) }
+    } catch { toast('Failed to fetch doctors', 'error') }
   }
 
   const getWeekDays = () => {
@@ -220,7 +222,7 @@ export default function CalendarPage() {
                             <p className="font-medium truncate">{apt.patient.name}</p>
                             <p className="text-gray-600 truncate">Dr. {apt.doctor.user.name}</p>
                             <Badge
-                              variant={getStatusColor(apt.status) as any}
+                              variant={getStatusColor(apt.status) as "default" | "secondary" | "destructive" | "outline" | "success" | "warning"}
                               className="text-[10px] mt-0.5"
                             >
                               #{apt.tokenNumber}

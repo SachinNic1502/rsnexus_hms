@@ -49,7 +49,7 @@ export default function UsersPage() {
   }
 
   const openCreate = () => { setEditing(null); reset({ name: '', email: '', password: '', role: 'receptionist', isActive: true }); setShowForm(true) }
-  const openEdit = (u: User) => { setEditing(u); reset({ name: u.name, email: u.email, password: '', role: u.role as any, isActive: u.isActive }); setShowForm(true) }
+  const openEdit = (u: User) => { setEditing(u); reset({ name: u.name, email: u.email, password: '', role: u.role as UserForm['role'], isActive: u.isActive }); setShowForm(true) }
 
   const onSubmit = async (data: UserForm) => {
     if (!editing && !data.password) { toast('Password required for new user', 'error'); return }

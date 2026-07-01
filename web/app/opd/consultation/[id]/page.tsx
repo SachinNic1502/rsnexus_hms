@@ -105,7 +105,9 @@ export default function ConsultationPage() {
         const data = await res.json()
         setServices(Array.isArray(data) ? data : [])
       }
-    } catch {}
+    } catch {
+      // Services are optional for consultation - continue without them
+    }
   }
 
   const addCharge = () => {
@@ -116,12 +118,12 @@ export default function ConsultationPage() {
     setExtraCharges(extraCharges.filter((_, i) => i !== index))
   }
 
-  const updateCharge = (index: number, field: keyof ChargeItem, value: any) => {
+  const updateCharge = (index: number, field: keyof ChargeItem, value: string | number) => {
     const updated = [...extraCharges]
     if (field === 'quantity' || field === 'unitPrice') {
-      (updated[index] as any)[field] = parseFloat(value) || 0
+      updated[index] = { ...updated[index], [field]: parseFloat(value as string) || 0 }
     } else {
-      (updated[index] as any)[field] = value
+      updated[index] = { ...updated[index], [field]: value }
     }
     setExtraCharges(updated)
   }

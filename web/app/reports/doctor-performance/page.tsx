@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { ArrowLeft, Download, Loader2 } from 'lucide-react'
 import Link from 'next/link'
 import { exportToExcel, exportToPDF } from '@/lib/export-utils'
+import { useToast } from '@/components/ui/toast'
 
 interface DoctorPerformance {
   doctorId: string
@@ -22,6 +23,7 @@ interface DoctorPerformance {
 }
 
 export default function DoctorPerformancePage() {
+  const { toast } = useToast()
   const [doctors, setDoctors] = useState<DoctorPerformance[]>([])
   const [allDoctors, setAllDoctors] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -44,7 +46,7 @@ export default function DoctorPerformancePage() {
         const data = await res.json()
         setDoctors(data.doctors)
       }
-    } catch (e) { console.error(e) }
+    } catch { toast('Failed to fetch report', 'error') }
     finally { setLoading(false) }
   }
 
@@ -54,7 +56,7 @@ export default function DoctorPerformancePage() {
     try {
       const res = await fetch('/api/doctors')
       if (res.ok) setAllDoctors(await res.json())
-    } catch (e) { console.error(e) }
+    } catch { toast('Failed to fetch doctors', 'error') }
   }
 
   const handleExportExcel = () => {

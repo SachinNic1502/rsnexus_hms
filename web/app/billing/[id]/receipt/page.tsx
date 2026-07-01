@@ -9,6 +9,7 @@ import { ArrowLeft, Printer, Loader2, Download } from 'lucide-react'
 import Link from 'next/link'
 import { Receipt } from '@/components/receipt'
 import { exportToPDF } from '@/lib/export-utils'
+import { useToast } from '@/components/ui/toast'
 
 interface Invoice {
   id: string
@@ -27,6 +28,7 @@ interface Invoice {
 
 export default function ReceiptPage() {
   const params = useParams()
+  const { toast } = useToast()
   const [invoice, setInvoice] = useState<Invoice | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -37,7 +39,7 @@ export default function ReceiptPage() {
       const res = await fetch(`/api/invoices/${params.id}`)
       if (!res.ok) throw new Error('Invoice not found')
       setInvoice(await res.json())
-    } catch (e) { console.error(e) }
+    } catch { toast('Failed to fetch invoice', 'error') }
     finally { setLoading(false) }
   }
 

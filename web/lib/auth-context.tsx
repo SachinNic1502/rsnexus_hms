@@ -1,6 +1,6 @@
 "use client"
 
-import React, { createContext, useContext, useState, useEffect } from 'react'
+import React, { createContext, useContext } from 'react'
 import { useSession, signIn, signOut } from 'next-auth/react'
 import { User, UserRole } from '@/types'
 
@@ -19,20 +19,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { data: session, status } = useSession()
 
   const user = session?.user ? {
-    id: (session.user as any).id || '',
+    id: session.user.id,
     email: session.user.email || '',
     name: session.user.name || '',
-    role: (session.user as any).role || 'receptionist',
+    role: session.user.role || 'receptionist',
   } : null
 
   const login = async (email: string, password: string): Promise<boolean> => {
-    console.log("[AUTH] Login attempt:", email)
     const result = await signIn('credentials', {
       email,
       password,
       redirect: false,
     })
-    console.log("[AUTH] Login result:", result)
     return !result?.error
   }
 

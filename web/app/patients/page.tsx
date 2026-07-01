@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Search, Plus, User, Phone, Loader2, Users } from 'lucide-react'
 import Link from 'next/link'
+import { useToast } from '@/components/ui/toast'
 
 interface Patient {
   id: string
@@ -24,6 +25,7 @@ interface Patient {
 }
 
 export default function PatientsPage() {
+  const { toast } = useToast()
   const [patients, setPatients] = useState<Patient[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
@@ -46,8 +48,8 @@ export default function PatientsPage() {
         const data = await res.json()
         setPatients(Array.isArray(data) ? data : [])
       }
-    } catch (error) {
-      console.error('Failed to fetch patients:', error)
+    } catch {
+      toast('Failed to fetch patients', 'error')
     } finally {
       setLoading(false)
     }

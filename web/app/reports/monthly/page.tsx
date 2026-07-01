@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { ArrowLeft, Download, Loader2 } from 'lucide-react'
 import Link from 'next/link'
 import { exportToExcel, exportToPDF } from '@/lib/export-utils'
+import { useToast } from '@/components/ui/toast'
 
 interface MonthlyReport {
   month: string
@@ -26,6 +27,7 @@ interface MonthlyReport {
 }
 
 export default function MonthlyReportPage() {
+  const { toast } = useToast()
   const [report, setReport] = useState<MonthlyReport | null>(null)
   const [loading, setLoading] = useState(true)
   const [month, setMonth] = useState(() => {
@@ -40,7 +42,7 @@ export default function MonthlyReportPage() {
     try {
       const res = await fetch(`/api/reports?type=monthly&month=${month}`)
       if (res.ok) setReport(await res.json())
-    } catch (e) { console.error(e) }
+    } catch { toast('Failed to fetch report', 'error') }
     finally { setLoading(false) }
   }
 

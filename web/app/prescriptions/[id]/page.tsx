@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { ArrowLeft, Printer, Loader2, Building2 } from 'lucide-react'
 import Link from 'next/link'
+import { useToast } from '@/components/ui/toast'
 
 interface Prescription {
   id: string
@@ -19,6 +20,7 @@ interface Prescription {
 
 export default function PrescriptionPrintPage() {
   const params = useParams()
+  const { toast } = useToast()
   const [prescription, setPrescription] = useState<Prescription | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -29,7 +31,7 @@ export default function PrescriptionPrintPage() {
       const res = await fetch(`/api/prescriptions/${params.id}`)
       if (!res.ok) throw new Error('Prescription not found')
       setPrescription(await res.json())
-    } catch (e) { console.error(e) }
+    } catch { toast('Failed to fetch prescription', 'error') }
     finally { setLoading(false) }
   }
 

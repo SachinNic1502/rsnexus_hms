@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { ArrowLeft, Download, Loader2, Calendar, Users, BedDouble, IndianRupee, TestTube } from 'lucide-react'
 import Link from 'next/link'
 import { exportToExcel, exportToPDF } from '@/lib/export-utils'
+import { useToast } from '@/components/ui/toast'
 
 interface DailyReport {
   date: string
@@ -29,6 +30,7 @@ interface DailyReport {
 }
 
 export default function DailyReportPage() {
+  const { toast } = useToast()
   const [report, setReport] = useState<DailyReport | null>(null)
   const [loading, setLoading] = useState(true)
   const [date, setDate] = useState(new Date().toISOString().split('T')[0])
@@ -40,7 +42,7 @@ export default function DailyReportPage() {
     try {
       const res = await fetch(`/api/reports?type=daily&date=${date}`)
       if (res.ok) setReport(await res.json())
-    } catch (e) { console.error(e) }
+    } catch { toast('Failed to fetch report', 'error') }
     finally { setLoading(false) }
   }
 

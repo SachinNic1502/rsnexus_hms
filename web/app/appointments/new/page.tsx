@@ -9,7 +9,7 @@ import { ArrowLeft, Save, Calendar, Clock, User, Stethoscope, Loader2, Search, A
 import Link from 'next/link'
 import { useToast } from '@/components/ui/toast'
 
-async function safeFetchJson(url: string): Promise<any[]> {
+async function safeFetchJson(url: string): Promise<Record<string, unknown>[]> {
   try {
     const res = await fetch(url)
     if (!res.ok) return []

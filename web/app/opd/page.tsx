@@ -93,7 +93,7 @@ export default function OPDPage() {
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
-                    <Badge variant={getStatusColor(apt.status) as any}>{apt.status.replace('_', ' ')}</Badge>
+                    <Badge variant={getStatusColor(apt.status) as "default" | "secondary" | "destructive" | "outline" | "success" | "warning"}>{apt.status.replace('_', ' ')}</Badge>
                     {apt.status === 'scheduled' && (
                       <Button size="sm" onClick={() => updateStatus(apt.id, 'waiting')}>Check In</Button>
                     )}

@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { ArrowLeft, Download, Loader2 } from 'lucide-react'
 import Link from 'next/link'
 import { exportToExcel, exportToPDF } from '@/lib/export-utils'
+import { useToast } from '@/components/ui/toast'
 
 interface RevenueReport {
   month: string
@@ -25,6 +26,7 @@ interface RevenueReport {
 }
 
 export default function RevenueReportPage() {
+  const { toast } = useToast()
   const [report, setReport] = useState<RevenueReport | null>(null)
   const [loading, setLoading] = useState(true)
   const [month, setMonth] = useState(() => {
@@ -39,7 +41,7 @@ export default function RevenueReportPage() {
     try {
       const res = await fetch(`/api/reports?type=revenue&month=${month}`)
       if (res.ok) setReport(await res.json())
-    } catch (e) { console.error(e) }
+    } catch { toast('Failed to fetch report', 'error') }
     finally { setLoading(false) }
   }
 

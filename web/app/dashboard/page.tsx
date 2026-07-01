@@ -108,28 +108,28 @@ export default function DashboardPage() {
   }
 
   const statCards = [
-    ...(hasRole(['super_admin', 'hospital_admin', 'receptionist', 'doctor', 'nurse'] as any) ? [{
+    ...(hasRole(['super_admin', 'hospital_admin', 'receptionist', 'doctor', 'nurse']) ? [{
       title: "Today's Appointments",
       value: stats?.todayAppointments || 0,
       icon: Calendar,
       color: 'text-blue-600',
       bgColor: 'bg-blue-100',
     }] : []),
-    ...(hasRole(['super_admin', 'hospital_admin', 'doctor', 'nurse'] as any) ? [{
+    ...(hasRole(['super_admin', 'hospital_admin', 'doctor', 'nurse']) ? [{
       title: 'Admitted Patients',
       value: stats?.admittedPatients || 0,
       icon: Users,
       color: 'text-green-600',
       bgColor: 'bg-green-100',
     }] : []),
-    ...(hasRole(['super_admin', 'hospital_admin', 'nurse'] as any) ? [{
+    ...(hasRole(['super_admin', 'hospital_admin', 'nurse']) ? [{
       title: 'Available Beds',
       value: stats?.availableBeds || 0,
       icon: BedDouble,
       color: 'text-purple-600',
       bgColor: 'bg-purple-100',
     }] : []),
-    ...(hasRole(['super_admin', 'hospital_admin', 'billing_staff'] as any) ? [{
+    ...(hasRole(['super_admin', 'hospital_admin', 'billing_staff']) ? [{
       title: 'Pending Bills',
       value: stats?.pendingBills || 0,
       icon: DollarSign,
@@ -139,17 +139,17 @@ export default function DashboardPage() {
   ]
 
   const quickActions = [
-    ...(hasRole(['super_admin', 'hospital_admin', 'receptionist'] as any) ? [
+    ...(hasRole(['super_admin', 'hospital_admin', 'receptionist']) ? [
       { href: '/patients/new', label: 'New Patient', icon: Users },
       { href: '/appointments/new', label: 'Book Appointment', icon: Calendar },
     ] : []),
-    ...(hasRole(['super_admin', 'hospital_admin', 'doctor', 'nurse'] as any) ? [
+    ...(hasRole(['super_admin', 'hospital_admin', 'doctor', 'nurse']) ? [
       { href: '/ipd/admit', label: 'Admit Patient', icon: BedDouble },
     ] : []),
-    ...(hasRole(['super_admin', 'hospital_admin', 'billing_staff'] as any) ? [
+    ...(hasRole(['super_admin', 'hospital_admin', 'billing_staff']) ? [
       { href: '/billing/new', label: 'Generate Bill', icon: DollarSign },
     ] : []),
-    ...(hasRole(['super_admin', 'hospital_admin'] as any) ? [
+    ...(hasRole(['super_admin', 'hospital_admin']) ? [
       { href: '/settings', label: 'Settings', icon: Settings },
     ] : []),
   ]
@@ -240,7 +240,7 @@ export default function DashboardPage() {
                     </div>
                     <div className="text-right">
                       <p className="text-sm font-medium">{appointment.time}</p>
-                      <Badge variant={getStatusColor(appointment.status) as any}>
+                      <Badge variant={getStatusColor(appointment.status) as "default" | "secondary" | "destructive" | "outline" | "success" | "warning"}>
                         {appointment.status.replace('_', ' ')}
                       </Badge>
                     </div>

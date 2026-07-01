@@ -7,9 +7,11 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { ArrowLeft, BedDouble, Stethoscope, FileText, Activity, Calendar, Loader2, Pill } from 'lucide-react'
 import Link from 'next/link'
+import { useToast } from '@/components/ui/toast'
 
 export default function AdmissionDetailPage() {
   const params = useParams()
+  const { toast } = useToast()
   const [admission, setAdmission] = useState<any>(null)
   const [loading, setLoading] = useState(true)
 
@@ -19,7 +21,7 @@ export default function AdmissionDetailPage() {
     try {
       const r = await fetch(`/api/admissions/${params.id}`)
       if (r.ok) setAdmission(await r.json())
-    } catch (e) { console.error(e) }
+    } catch { toast('Failed to fetch admission', 'error') }
     finally { setLoading(false) }
   }
 

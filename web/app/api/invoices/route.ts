@@ -13,8 +13,11 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get("status")
     const type = searchParams.get("type")
     const patientId = searchParams.get("patientId")
+    const appointmentId = searchParams.get("appointmentId")
 
     const where: InvoiceWhereInput = {}
+    where.isDeleted = false
+
     if (status && status !== "all") {
       where.status = status as 'pending' | 'partial' | 'paid' | 'cancelled'
     }
@@ -23,6 +26,9 @@ export async function GET(request: NextRequest) {
     }
     if (patientId) {
       where.patientId = patientId
+    }
+    if (appointmentId) {
+      where.appointmentId = appointmentId
     }
 
     const invoices = await prisma.invoice.findMany({

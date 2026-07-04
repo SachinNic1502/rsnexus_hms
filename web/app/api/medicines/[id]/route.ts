@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { z } from "zod"
+import { getToken } from "next-auth/jwt"
 
 const medicineUpdateSchema = z.object({
   name: z.string().min(1).optional(),
@@ -62,7 +63,15 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params
-    await prisma.medicine.delete({ where: { id } })
+    const token = await getToken({ req: _request, secret: process.env.NEXTAUTH_SECRET })
+    await prisma.medicine.update({
+      where: { id },
+      data: {
+        isDeleted: true,
+        deletedAt: new Date(),
+        deletedBy: token?.sub || undefined,
+      },
+    })
     return NextResponse.json({ message: "Deleted" })
   } catch (error) {
     return NextResponse.json({ error: "Failed" }, { status: 500 })

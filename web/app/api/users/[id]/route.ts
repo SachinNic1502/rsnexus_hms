@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { hashSync } from "bcryptjs"
 import { z } from "zod"
+import { getToken } from "next-auth/jwt"
 
 const updateUserSchema = z.object({
   name: z.string().min(2).optional(),
@@ -49,7 +50,16 @@ export async function DELETE(
     const user = await prisma.user.findUnique({ where: { id } })
     if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 })
     if (user.role === "super_admin") return NextResponse.json({ error: "Cannot delete super admin" }, { status: 400 })
-    await prisma.user.delete({ where: { id } })
+
+    const token = await getToken({ req: _request, secret: process.env.NEXTAUTH_SECRET })
+    await prisma.user.update({
+      where: { id },
+      data: {
+        isDeleted: true,
+        deletedAt: new Date(),
+        deletedBy: token?.sub || undefined,
+      },
+    })
     return NextResponse.json({ message: "User deleted" })
   } catch (error) {
     console.error("DELETE user error:", error)

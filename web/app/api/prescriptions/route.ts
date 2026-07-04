@@ -10,6 +10,9 @@ const prescriptionMedicineSchema = z.object({
   frequency: z.string().min(1, "Frequency is required"),
   duration: z.string().min(1, "Duration is required"),
   instructions: z.string().optional().or(z.literal("")),
+  timing: z.string().optional().or(z.literal("")),
+  foodInstruction: z.string().optional().or(z.literal("")),
+  usageInstructions: z.string().optional().or(z.literal("")),
 }).refine(data => data.medicineName || data.name, { message: "Medicine name is required" })
 
 const prescriptionSchema = z.object({
@@ -23,9 +26,12 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const patientId = searchParams.get("patientId")
+    const consultationId = searchParams.get("consultationId")
 
     const where: any = {}
+    where.isDeleted = false
     if (patientId) where.patientId = patientId
+    if (consultationId) where.consultationId = consultationId
 
     const prescriptions = await prisma.prescription.findMany({
       where,
@@ -61,7 +67,7 @@ export async function POST(request: NextRequest) {
       let medicineId = m.medicineId || ""
 
       if (!medicineId && medicineName) {
-        let medicine = await prisma.medicine.findFirst({ where: { name: { equals: medicineName, mode: "insensitive" } } })
+        let medicine = await prisma.medicine.findFirst({ where: { name: { equals: medicineName, mode: "insensitive" }, isDeleted: false } })
         if (!medicine) {
           medicine = await prisma.medicine.create({ data: { name: medicineName, unit: "tablet", price: 0, stock: 0 } })
         }
@@ -75,6 +81,9 @@ export async function POST(request: NextRequest) {
         frequency: m.frequency,
         duration: m.duration,
         instructions: m.instructions || undefined,
+        timing: m.timing || undefined,
+        foodInstruction: m.foodInstruction || undefined,
+        usageInstructions: m.usageInstructions || undefined,
       })
     }
 

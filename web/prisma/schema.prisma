@@ -16,6 +16,9 @@ model User {
   passwordHash   String
   role           UserRole  @default(receptionist)
   isActive       Boolean   @default(true)
+  isDeleted      Boolean   @default(false)
+  deletedAt      DateTime?
+  deletedBy      String?   @db.ObjectId
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
@@ -47,6 +50,16 @@ model Patient {
   bloodGroup            BloodGroup?
   emergencyContact      String?
   emergencyContactNumber String?
+  // Vitals
+  bloodPressure         String?
+  oxygenSaturation      Int?
+  height                Float?
+  weight                Float?
+  temperature           Float?
+  pulse                 Int?
+  isDeleted             Boolean  @default(false)
+  deletedAt             DateTime?
+  deletedBy             String?  @db.ObjectId
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
 
@@ -81,6 +94,9 @@ model Department {
   id          String   @id @default(auto()) @map("_id") @db.ObjectId
   name        String   @unique
   description String?
+  isDeleted   Boolean  @default(false)
+  deletedAt   DateTime?
+  deletedBy   String?  @db.ObjectId
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -97,6 +113,9 @@ model Doctor {
   specialization  String
   qualification   String
   available       Boolean  @default(true)
+  isDeleted       Boolean  @default(false)
+  deletedAt       DateTime?
+  deletedBy       String?  @db.ObjectId
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
@@ -122,6 +141,15 @@ model Appointment {
   status            AppointmentStatus @default(scheduled)
   appointmentNumber String            @unique
   tokenNumber       Int
+  temperature       Float?
+  bloodPressure     String?
+  pulse             Int?
+  oxygenSaturation  Int?
+  weight            Float?
+  height            Float?
+  isDeleted         Boolean           @default(false)
+  deletedAt         DateTime?
+  deletedBy         String?           @db.ObjectId
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
 
@@ -163,6 +191,9 @@ model Consultation {
   weight          Float?
   height          Float?
   clinicalNotes   String?
+  isDeleted       Boolean  @default(false)
+  deletedAt       DateTime?
+  deletedBy       String?  @db.ObjectId
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
@@ -184,6 +215,9 @@ model Medicine {
   stock          Int      @default(0)
   unit           String
   price          Float
+  isDeleted      Boolean  @default(false)
+  deletedAt      DateTime?
+  deletedBy      String?  @db.ObjectId
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
@@ -197,6 +231,9 @@ model Prescription {
   consultationId  String?  @unique @db.ObjectId
   patientId       String   @db.ObjectId
   doctorId        String   @db.ObjectId
+  isDeleted       Boolean  @default(false)
+  deletedAt       DateTime?
+  deletedBy       String?  @db.ObjectId
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
@@ -215,6 +252,12 @@ model PrescriptionMedicine {
   frequency       String
   duration        String
   instructions    String?
+  timing          String?
+  foodInstruction String?
+  usageInstructions String?
+  isDeleted       Boolean      @default(false)
+  deletedAt       DateTime?
+  deletedBy       String?      @db.ObjectId
   createdAt       DateTime     @default(now())
 
   prescription    Prescription @relation(fields: [prescriptionId], references: [id])
@@ -229,6 +272,9 @@ model LabTest {
   category    String
   price       Float
   description String?
+  isDeleted   Boolean  @default(false)
+  deletedAt   DateTime?
+  deletedBy   String?  @db.ObjectId
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
@@ -244,6 +290,9 @@ model LabOrder {
   status          LabOrderStatus @default(pending)
   orderedAt       DateTime       @default(now())
   completedAt     DateTime?
+  isDeleted       Boolean        @default(false)
+  deletedAt       DateTime?
+  deletedBy       String?        @db.ObjectId
 
   patient         Patient        @relation(fields: [patientId], references: [id])
   consultation    Consultation?  @relation(fields: [consultationId], references: [id])
@@ -264,6 +313,9 @@ model LabOrderTest {
   labTestId   String   @db.ObjectId
   testName    String
   price       Float
+  isDeleted   Boolean  @default(false)
+  deletedAt   DateTime?
+  deletedBy   String?  @db.ObjectId
 
   labOrder    LabOrder @relation(fields: [labOrderId], references: [id])
 }
@@ -276,6 +328,9 @@ model LabReport {
   results         Json
   uploadedAt      DateTime @default(now())
   uploadedBy      String
+  isDeleted       Boolean  @default(false)
+  deletedAt       DateTime?
+  deletedBy       String?  @db.ObjectId
 
   labOrder        LabOrder @relation(fields: [labOrderId], references: [id])
 }
@@ -287,6 +342,9 @@ model Ward {
   name      String   @unique
   type      WardType
   floor     Int
+  isDeleted Boolean  @default(false)
+  deletedAt DateTime?
+  deletedBy String?  @db.ObjectId
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -308,6 +366,9 @@ model Room {
   type          RoomType
   bedCount      Int
   chargesPerDay Float
+  isDeleted     Boolean  @default(false)
+  deletedAt     DateTime?
+  deletedBy     String?  @db.ObjectId
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -328,6 +389,9 @@ model Bed {
   bedNumber         String
   status            BedStatus @default(available)
   currentPatientId  String?   @db.ObjectId
+  isDeleted         Boolean   @default(false)
+  deletedAt         DateTime?
+  deletedBy         String?   @db.ObjectId
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
@@ -357,6 +421,9 @@ model Admission {
   dischargeSummary  String?
   finalDiagnosis    String?
   followUpDate      DateTime?
+  isDeleted         Boolean         @default(false)
+  deletedAt         DateTime?
+  deletedBy         String?         @db.ObjectId
   createdAt         DateTime        @default(now())
   updatedAt         DateTime        @updatedAt
 
@@ -377,17 +444,20 @@ enum AdmissionStatus {
 // ─── Daily Rounds (IPD) ──────────────────────────────────
 
 model DailyRound {
-  id              String   @id @default(auto()) @map("_id") @db.ObjectId
-  admissionId     String   @db.ObjectId
-  date            DateTime @default(now())
+  id              String    @id @default(auto()) @map("_id") @db.ObjectId
+  admissionId     String    @db.ObjectId
+  date            DateTime  @default(now())
   temperature     Float?
   bloodPressure   String?
   pulse           Int?
   respiratoryRate Int?
   oxygenSaturation Int?
   notes           String
-  doctorId        String   @db.ObjectId
-  createdAt       DateTime @default(now())
+  doctorId        String    @db.ObjectId
+  isDeleted       Boolean   @default(false)
+  deletedAt       DateTime?
+  deletedBy       String?   @db.ObjectId
+  createdAt       DateTime  @default(now())
 
   admission       Admission @relation(fields: [admissionId], references: [id])
 }
@@ -406,6 +476,9 @@ model Invoice {
   discount      Float
   total         Float
   status        InvoiceStatus @default(pending)
+  isDeleted     Boolean       @default(false)
+  deletedAt     DateTime?
+  deletedBy     String?       @db.ObjectId
   createdAt     DateTime      @default(now())
   paidAt        DateTime?
 
@@ -436,6 +509,9 @@ model InvoiceItem {
   unitPrice   Float
   total       Float
   type        ItemType
+  isDeleted   Boolean     @default(false)
+  deletedAt   DateTime?
+  deletedBy   String?     @db.ObjectId
 
   invoice     Invoice     @relation(fields: [invoiceId], references: [id])
 }
@@ -458,6 +534,9 @@ model Payment {
   transactionId   String?
   paidAt          DateTime      @default(now())
   receivedBy      String
+  isDeleted       Boolean       @default(false)
+  deletedAt       DateTime?
+  deletedBy       String?       @db.ObjectId
 
   invoice         Invoice       @relation(fields: [invoiceId], references: [id])
 }
@@ -479,6 +558,9 @@ model Service {
   price       Float
   description String?
   isActive    Boolean  @default(true)
+  isDeleted   Boolean  @default(false)
+  deletedAt   DateTime?
+  deletedBy   String?  @db.ObjectId
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }

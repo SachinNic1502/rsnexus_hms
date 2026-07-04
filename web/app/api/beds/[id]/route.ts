@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { z } from "zod"
+import { getToken } from "next-auth/jwt"
 
 const createBedSchema = z.object({
   roomId: z.string().min(1, "Room is required"),
@@ -39,7 +40,15 @@ export async function DELETE(
     if (bed.status === "occupied") {
       return NextResponse.json({ error: "Cannot delete occupied bed" }, { status: 400 })
     }
-    await prisma.bed.delete({ where: { id } })
+    const token = await getToken({ req: _request, secret: process.env.NEXTAUTH_SECRET })
+    await prisma.bed.update({
+      where: { id },
+      data: {
+        isDeleted: true,
+        deletedAt: new Date(),
+        deletedBy: token?.sub || undefined,
+      },
+    })
     return NextResponse.json({ message: "Deleted" })
   } catch (error) {
     return NextResponse.json({ error: "Failed" }, { status: 500 })

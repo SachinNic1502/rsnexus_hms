@@ -17,7 +17,8 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const departmentId = searchParams.get("departmentId")
 
-    const where: Record<string, string> = {}
+    const where: Record<string, any> = {}
+    where.isDeleted = false
     if (departmentId) where.departmentId = departmentId
 
     const doctors = await prisma.doctor.findMany({

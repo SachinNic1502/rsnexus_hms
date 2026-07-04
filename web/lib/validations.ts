@@ -21,6 +21,12 @@ export const appointmentSchema = z.object({
   date: z.string().min(1, 'Date is required'),
   time: z.string().min(1, 'Time is required'),
   consultationType: z.enum(['new', 'follow_up']),
+  temperature: z.string().optional().or(z.literal('')),
+  bloodPressure: z.string().optional().or(z.literal('')),
+  pulse: z.string().optional().or(z.literal('')),
+  oxygenSaturation: z.string().optional().or(z.literal('')),
+  weight: z.string().optional().or(z.literal('')),
+  height: z.string().optional().or(z.literal('')),
 })
 
 // ─── Consultation ────────────────────────────────────────
@@ -45,6 +51,9 @@ export const prescriptionItemSchema = z.object({
   frequency: z.string().min(1, 'Frequency is required'),
   duration: z.string().min(1, 'Duration is required'),
   instructions: z.string().optional().or(z.literal('')),
+  timing: z.string().optional().or(z.literal('')),
+  foodInstruction: z.string().optional().or(z.literal('')),
+  usageInstructions: z.string().optional().or(z.literal('')),
 })
 
 export const prescriptionSchema = z.object({

@@ -10,6 +10,8 @@ const adminOnlyRoutes = [
   "/api/medicines",
   "/api/lab-tests",
   "/api/rooms",
+  "/api/departments",
+  "/api/services",
 ]
 
 const doctorOnlyRoutes = [
@@ -34,6 +36,10 @@ const reportsOnlyRoutes = [
   "/api/reports",
 ]
 
+const receptionistRoutes = [
+  "/api/appointments",
+]
+
 function getRouteRole(pathname: string): string | null {
   for (const route of adminOnlyRoutes) {
     if (pathname.startsWith(route)) return "admin"
@@ -47,12 +53,17 @@ function getRouteRole(pathname: string): string | null {
   for (const route of labRoutes) {
     if (pathname.startsWith(route)) return "lab"
   }
-  if (pathname.startsWith("/api/invoices/auto-opd") || pathname.startsWith("/api/invoices/auto-ipd")) return "doctor_or_billing"
-  if (pathname.startsWith("/api/invoices") && pathname.includes("/payment")) return "billing"
-  if (pathname === "/api/invoices" || pathname === "/api/invoices/") return "billing"
+  for (const route of billingOnlyRoutes) {
+    if (pathname.startsWith(route)) return "billing"
+  }
   for (const route of reportsOnlyRoutes) {
     if (pathname.startsWith(route)) return "reports"
   }
+  for (const route of receptionistRoutes) {
+    if (pathname.startsWith(route)) return "receptionist"
+  }
+  if (pathname.startsWith("/api/invoices/auto-opd") || pathname.startsWith("/api/invoices/auto-ipd")) return "billing"
+  if (pathname.startsWith("/api/invoices") && pathname.includes("/payment")) return "billing"
   return null
 }
 
@@ -60,8 +71,9 @@ const adminRoles = ["super_admin", "hospital_admin"]
 const doctorRoles = ["doctor"]
 const nurseRoles = ["super_admin", "hospital_admin", "nurse"]
 const labRoles = ["super_admin", "hospital_admin", "doctor", "lab_technician"]
-const billingRoles = ["super_admin", "hospital_admin", "billing_staff"]
+const billingRoles = ["super_admin", "hospital_admin", "billing_staff", "receptionist"]
 const reportsRoles = ["super_admin", "hospital_admin"]
+const receptionistRoles = ["super_admin", "hospital_admin", "receptionist"]
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
@@ -98,8 +110,7 @@ export async function middleware(request: NextRequest) {
       else if (requiredRole === "lab") allowed = labRoles.includes(userRole)
       else if (requiredRole === "billing") allowed = billingRoles.includes(userRole)
       else if (requiredRole === "reports") allowed = reportsRoles.includes(userRole)
-      else if (requiredRole === "doctor_or_billing") allowed = [...doctorRoles, ...billingRoles].includes(userRole)
-
+      else if (requiredRole === "receptionist") allowed = receptionistRoles.includes(userRole)
       if (!allowed) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 })
       }

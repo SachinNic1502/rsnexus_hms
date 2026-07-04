@@ -16,6 +16,9 @@ export interface User {
   name: string
   role: UserRole
   hospitalId?: string
+  isDeleted?: boolean
+  deletedAt?: Date
+  deletedBy?: string
 }
 
 // Patient
@@ -31,6 +34,9 @@ export interface Patient {
   bloodGroup?: string
   emergencyContact?: string
   emergencyContactNumber?: string
+  isDeleted?: boolean
+  deletedAt?: Date
+  deletedBy?: string
   createdAt: Date
   updatedAt: Date
 }
@@ -68,6 +74,15 @@ export interface Appointment {
   status: AppointmentStatus
   appointmentNumber: string
   tokenNumber: number
+  temperature?: number
+  bloodPressure?: string
+  pulse?: number
+  oxygenSaturation?: number
+  weight?: number
+  height?: number
+  isDeleted?: boolean
+  deletedAt?: Date
+  deletedBy?: string
   createdAt: Date
 }
 
@@ -82,6 +97,9 @@ export interface Consultation {
   diagnosis: string
   vitals?: Vitals
   clinicalNotes: string
+  isDeleted?: boolean
+  deletedAt?: Date
+  deletedBy?: string
   createdAt: Date
   updatedAt: Date
 }
@@ -114,6 +132,9 @@ export interface PrescriptionMedicine {
   frequency: string
   duration: string
   instructions?: string
+  timing?: string
+  foodInstruction?: string
+  usageInstructions?: string
 }
 
 // Medicine
@@ -126,6 +147,9 @@ export interface Medicine {
   stock: number
   unit: string
   price: number
+  isDeleted?: boolean
+  deletedAt?: Date
+  deletedBy?: string
 }
 
 // Lab Test
@@ -184,6 +208,9 @@ export interface Admission {
   dischargeSummary?: string
   finalDiagnosis?: string
   followUpDate?: Date
+  isDeleted?: boolean
+  deletedAt?: Date
+  deletedBy?: string
 }
 
 // Ward
@@ -192,6 +219,9 @@ export interface Ward {
   name: string
   floor: number
   type: 'general' | 'icu' | 'emergency' | 'private'
+  isDeleted?: boolean
+  deletedAt?: Date
+  deletedBy?: string
 }
 
 // Room
@@ -229,6 +259,9 @@ export interface Invoice {
   discount: number
   total: number
   status: InvoiceStatus
+  isDeleted?: boolean
+  deletedAt?: Date
+  deletedBy?: string
   createdAt: Date
   paidAt?: Date
 }

@@ -12,6 +12,7 @@ const labTestSchema = z.object({
 export async function GET() {
   try {
     const labTests = await prisma.labTest.findMany({
+      where: { isDeleted: false },
       orderBy: { name: "asc" },
     })
     return NextResponse.json(labTests)

@@ -12,10 +12,23 @@ const medicineSchema = z.object({
   price: z.number().min(0, "Price must be positive"),
 })
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const { searchParams } = new URL(request.url)
+    const search = searchParams.get("search") || ""
+
+    const where: any = { isDeleted: false }
+    if (search) {
+      where.OR = [
+        { name: { contains: search, mode: "insensitive" } },
+        { genericName: { contains: search, mode: "insensitive" } },
+      ]
+    }
+
     const medicines = await prisma.medicine.findMany({
+      where,
       orderBy: { name: "asc" },
+      take: search ? 20 : undefined,
     })
     return NextResponse.json(medicines)
   } catch (error) {

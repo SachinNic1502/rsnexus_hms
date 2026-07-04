@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { z } from "zod"
+import { getToken } from "next-auth/jwt"
 
 const wardUpdateSchema = z.object({
   name: z.string().min(1).optional(),
@@ -72,6 +73,8 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params
+    const token = await getToken({ req: _request, secret: process.env.NEXTAUTH_SECRET })
+    const deletedBy = token?.sub || undefined
 
     const bedsInWard = await prisma.bed.count({
       where: { room: { wardId: id }, status: "occupied" },
@@ -84,9 +87,10 @@ export async function DELETE(
       )
     }
 
-    await prisma.bed.deleteMany({ where: { room: { wardId: id } } })
-    await prisma.room.deleteMany({ where: { wardId: id } })
-    await prisma.ward.delete({ where: { id } })
+    const now = new Date()
+    await prisma.bed.updateMany({ where: { room: { wardId: id } }, data: { isDeleted: true, deletedAt: now, deletedBy } })
+    await prisma.room.updateMany({ where: { wardId: id }, data: { isDeleted: true, deletedAt: now, deletedBy } })
+    await prisma.ward.update({ where: { id }, data: { isDeleted: true, deletedAt: now, deletedBy } })
 
     return NextResponse.json({ message: "Ward deleted" })
   } catch (error) {

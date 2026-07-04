@@ -10,6 +10,8 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get("status")
 
     const where: AdmissionWhereInput = {}
+    where.isDeleted = false
+
     if (status && status !== "all") {
       where.status = status as 'admitted' | 'discharged'
     }

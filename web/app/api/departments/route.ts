@@ -10,6 +10,7 @@ const departmentSchema = z.object({
 export async function GET() {
   try {
     const departments = await prisma.department.findMany({
+      where: { isDeleted: false },
       include: {
         _count: { select: { doctors: true } },
       },

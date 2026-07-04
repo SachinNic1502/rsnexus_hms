@@ -13,6 +13,8 @@ export async function GET(request: NextRequest) {
     const doctorId = searchParams.get("doctorId")
 
     const where: AppointmentWhereInput = {}
+    where.isDeleted = false
+
     if (status && status !== "all") {
       where.status = status as 'scheduled' | 'waiting' | 'in_progress' | 'completed' | 'cancelled'
     }
@@ -51,7 +53,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Validation failed", details: parsed.error.issues }, { status: 400 })
     }
 
-    const { patientId, doctorId, departmentId, date, time, consultationType } = parsed.data
+    const { patientId, doctorId, departmentId, date, time, consultationType, temperature, bloodPressure, pulse, oxygenSaturation, weight, height } = parsed.data
 
     const dayStart = new Date(date)
     dayStart.setHours(0, 0, 0, 0)
@@ -64,6 +66,7 @@ export async function POST(request: NextRequest) {
         date: { gte: dayStart, lte: dayEnd },
         time,
         status: { not: 'cancelled' },
+        isDeleted: false,
       },
       select: { id: true, appointmentNumber: true },
     })
@@ -77,6 +80,7 @@ export async function POST(request: NextRequest) {
     const lastAppointment = await prisma.appointment.findFirst({
       orderBy: { createdAt: "desc" },
       select: { appointmentNumber: true },
+      where: { isDeleted: false },
     })
 
     const appointmentNumber = generateSequentialNumber("APT", lastAppointment?.appointmentNumber)
@@ -85,6 +89,7 @@ export async function POST(request: NextRequest) {
       where: {
         doctorId,
         date: { gte: dayStart, lte: dayEnd },
+        isDeleted: false,
       },
     }) + 1
 
@@ -98,6 +103,12 @@ export async function POST(request: NextRequest) {
         consultationType,
         appointmentNumber,
         tokenNumber,
+        temperature: temperature ? parseFloat(temperature) : undefined,
+        bloodPressure: bloodPressure || undefined,
+        pulse: pulse ? parseInt(pulse) : undefined,
+        oxygenSaturation: oxygenSaturation ? parseInt(oxygenSaturation) : undefined,
+        weight: weight ? parseFloat(weight) : undefined,
+        height: height ? parseFloat(height) : undefined,
       },
       include: {
         patient: true,

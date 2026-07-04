@@ -20,17 +20,8 @@ export async function GET(
           orderBy: { createdAt: "desc" },
           take: 10,
         },
-        admissions: {
-          include: { ward: true, room: true, bed: true, doctor: { include: { user: true } } },
-          orderBy: { admissionDate: "desc" },
-          take: 5,
-        },
-        labOrders: {
-          include: { tests: true, doctor: { include: { user: true } }, report: true },
-          orderBy: { orderedAt: "desc" },
-          take: 10,
-        },
-        invoices: {
+        prescriptions: {
+          include: { doctor: { include: { user: true } }, medicines: true },
           orderBy: { createdAt: "desc" },
           take: 10,
         },
@@ -67,11 +58,42 @@ export async function PUT(
         bloodGroup: body.bloodGroup || undefined,
         emergencyContact: body.emergencyContact || undefined,
         emergencyContactNumber: body.emergencyContactNumber || undefined,
+        // Vitals
+        bloodPressure: body.bloodPressure || undefined,
+        oxygenSaturation: body.oxygenSaturation ? parseInt(body.oxygenSaturation) : undefined,
+        height: body.height ? parseFloat(body.height) : undefined,
+        weight: body.weight ? parseFloat(body.weight) : undefined,
+        temperature: body.temperature ? parseFloat(body.temperature) : undefined,
+        pulse: body.pulse ? parseInt(body.pulse) : undefined,
       },
     })
 
     return NextResponse.json(patient)
   } catch (error) {
     return NextResponse.json({ error: "Failed to update patient" }, { status: 500 })
+  }
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params
+    const body = await request.json()
+    const deletedBy = body.deletedBy
+
+    const patient = await prisma.patient.update({
+      where: { id },
+      data: {
+        isDeleted: true,
+        deletedAt: new Date(),
+        deletedBy: deletedBy || undefined,
+      },
+    })
+
+    return NextResponse.json({ message: "Patient soft deleted successfully" })
+  } catch (error) {
+    return NextResponse.json({ error: "Failed to delete patient" }, { status: 500 })
   }
 }

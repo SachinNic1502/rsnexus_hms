@@ -11,6 +11,7 @@ const wardSchema = z.object({
 export async function GET() {
   try {
     const wards = await prisma.ward.findMany({
+      where: { isDeleted: false },
       include: {
         rooms: {
           include: {

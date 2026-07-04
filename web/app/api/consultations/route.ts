@@ -26,6 +26,7 @@ export async function GET(request: NextRequest) {
     const doctorId = searchParams.get("doctorId")
 
     const where: any = {}
+    where.isDeleted = false
     if (patientId) where.patientId = patientId
     if (doctorId) where.doctorId = doctorId
 
@@ -83,11 +84,18 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    if (appointmentId) {
-      await prisma.appointment.update({
-        where: { id: appointmentId },
-        data: { status: "completed" },
-      })
+    // Save vitals back to patient record
+    if (patientId) {
+      const patientUpdate: any = {}
+      if (data.temperature !== undefined) patientUpdate.temperature = data.temperature
+      if (data.bloodPressure) patientUpdate.bloodPressure = data.bloodPressure
+      if (data.pulse !== undefined) patientUpdate.pulse = data.pulse
+      if (data.oxygenSaturation !== undefined) patientUpdate.oxygenSaturation = data.oxygenSaturation
+      if (data.weight !== undefined) patientUpdate.weight = data.weight
+      if (data.height !== undefined) patientUpdate.height = data.height
+      if (Object.keys(patientUpdate).length > 0) {
+        await prisma.patient.update({ where: { id: patientId }, data: patientUpdate })
+      }
     }
 
     return NextResponse.json(consultation, { status: 201 })

@@ -108,7 +108,7 @@ export default function OPDPage() {
                       </Link>
                     )}
                     {apt.status === 'completed' && (
-                      <Link href={`/billing?patientId=${apt.patient.id}`}>
+                      <Link href={`/billing/visit/${apt.id}`}>
                         <Button size="sm" variant="ghost"><Receipt className="mr-1 h-3 w-3" /> Bill</Button>
                       </Link>
                     )}

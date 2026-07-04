@@ -73,7 +73,15 @@ export async function DELETE(
     if (adminCheck) return adminCheck
 
     const { id } = await params
-    await prisma.service.delete({ where: { id } })
+    const token = await getToken({ req: _request, secret: process.env.NEXTAUTH_SECRET })
+    await prisma.service.update({
+      where: { id },
+      data: {
+        isDeleted: true,
+        deletedAt: new Date(),
+        deletedBy: token?.sub || undefined,
+      },
+    })
     return NextResponse.json({ message: "Deleted" })
   } catch (error) {
     return NextResponse.json({ error: "Failed" }, { status: 500 })

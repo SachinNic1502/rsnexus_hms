@@ -11,32 +11,40 @@ import {
   Users,
   Calendar,
   Stethoscope,
-  BedDouble,
-  FlaskConical,
   DollarSign,
   BarChart3,
   Settings,
   LogOut,
   Hospital,
   Pill,
-  ClipboardList,
   Menu,
   X,
+  UserPlus,
+  FileText,
 } from 'lucide-react'
 
 const navigation = [
-  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, roles: undefined as UserRole[] | undefined },
-  { name: 'Patients', href: '/patients', icon: Users, roles: undefined as UserRole[] | undefined },
-  { name: 'Appointments', href: '/appointments', icon: Calendar, roles: undefined as UserRole[] | undefined },
-  { name: 'OPD', href: '/opd', icon: Stethoscope, roles: undefined as UserRole[] | undefined },
-  { name: 'IPD', href: '/ipd', icon: BedDouble, roles: undefined as UserRole[] | undefined },
-  { name: 'Wards', href: '/wards', icon: BedDouble, roles: ['super_admin', 'hospital_admin', 'nurse'] as UserRole[] },
-  { name: 'Lab', href: '/lab', icon: FlaskConical, roles: ['super_admin', 'hospital_admin', 'doctor', 'lab_technician'] as UserRole[] },
-  { name: 'Billing', href: '/billing', icon: DollarSign, roles: ['super_admin', 'hospital_admin', 'billing_staff'] as UserRole[] },
-  { name: 'Medicines', href: '/medicines', icon: Pill, roles: ['super_admin', 'hospital_admin', 'pharmacist'] as UserRole[] },
-  { name: 'Services', href: '/services', icon: ClipboardList, roles: ['super_admin', 'hospital_admin'] as UserRole[] },
-  { name: 'Reports', href: '/reports', icon: BarChart3, roles: ['super_admin', 'hospital_admin'] as UserRole[] },
+  // Receptionist Menu
+  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, roles: ['receptionist'] as UserRole[] },
+  { name: 'Patient Registration', href: '/registration', icon: UserPlus, roles: ['receptionist'] as UserRole[] },
+  { name: 'Appointments', href: '/appointments', icon: Calendar, roles: ['receptionist'] as UserRole[] },
+  { name: 'Patient List', href: '/patients', icon: Users, roles: ['receptionist'] as UserRole[] },
+  { name: 'Billing', href: '/billing', icon: DollarSign, roles: ['receptionist'] as UserRole[] },
+  { name: 'Reports', href: '/reports', icon: BarChart3, roles: ['receptionist'] as UserRole[] },
+
+  // Doctor Menu
+  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, roles: ['doctor'] as UserRole[] },
+  { name: 'Today\'s Patients', href: '/opd', icon: Stethoscope, roles: ['doctor'] as UserRole[] },
+  { name: 'Consultation', href: '/opd', icon: Stethoscope, roles: ['doctor'] as UserRole[] },
+  { name: 'History', href: '/patients', icon: FileText, roles: ['doctor'] as UserRole[] },
+  { name: 'Prescriptions', href: '/prescriptions', icon: Pill, roles: ['doctor'] as UserRole[] },
+
+  // Admin Menu (Super Admin & Hospital Admin)
+  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, roles: ['super_admin', 'hospital_admin'] as UserRole[] },
+  { name: 'Users', href: '/settings/users', icon: Users, roles: ['super_admin', 'hospital_admin'] as UserRole[] },
+  { name: 'Medicines', href: '/medicines', icon: Pill, roles: ['super_admin', 'hospital_admin'] as UserRole[] },
   { name: 'Settings', href: '/settings', icon: Settings, roles: ['super_admin', 'hospital_admin'] as UserRole[] },
+  { name: 'Reports', href: '/reports', icon: BarChart3, roles: ['super_admin', 'hospital_admin'] as UserRole[] },
 ]
 
 function SidebarContent({ onLinkClick }: { onLinkClick?: () => void }) {

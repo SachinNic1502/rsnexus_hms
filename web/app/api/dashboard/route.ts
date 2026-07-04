@@ -23,17 +23,18 @@ export async function GET() {
         where: {
           date: { gte: today, lt: tomorrow },
           status: { not: "cancelled" },
+          isDeleted: { isSet: false },
         },
       }),
       prisma.admission.count({ where: { status: "admitted" } }),
-      prisma.bed.count({ where: { status: { not: "maintenance" } } }),
-      prisma.bed.count({ where: { status: "occupied" } }),
+      prisma.bed.count({ where: { status: { not: "maintenance" }, isDeleted: { isSet: false } } }),
+      prisma.bed.count({ where: { status: "occupied", isDeleted: { isSet: false } } }),
       prisma.invoice.count({ where: { status: { in: ["pending", "partial"] } } }),
       prisma.doctor.findMany({
         include: { user: true, department: true },
       }),
       prisma.appointment.findMany({
-        where: { date: { gte: today, lt: tomorrow }, status: { not: "cancelled" } },
+        where: { date: { gte: today, lt: tomorrow }, status: { not: "cancelled" }, isDeleted: { isSet: false } },
         include: { patient: true, doctor: { include: { user: true } }, department: true },
         orderBy: { createdAt: "desc" },
         take: 10,

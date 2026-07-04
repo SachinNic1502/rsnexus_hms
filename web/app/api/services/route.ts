@@ -13,7 +13,7 @@ const serviceSchema = z.object({
 export async function GET() {
   try {
     const services = await prisma.service.findMany({
-      where: { isActive: true },
+      where: { isActive: true, isDeleted: { isSet: false } },
       orderBy: { name: "asc" },
     })
     return NextResponse.json(services)

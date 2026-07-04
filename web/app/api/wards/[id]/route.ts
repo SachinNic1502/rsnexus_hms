@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
+import { getServerSession } from "next-auth"
 import { prisma } from "@/lib/prisma"
+import { authOptions } from "@/lib/auth"
 import { z } from "zod"
 
 const wardUpdateSchema = z.object({
@@ -84,9 +86,13 @@ export async function DELETE(
       )
     }
 
-    await prisma.bed.deleteMany({ where: { room: { wardId: id } } })
-    await prisma.room.deleteMany({ where: { wardId: id } })
-    await prisma.ward.delete({ where: { id } })
+    const session = await getServerSession(authOptions)
+    const deletedBy = session?.user?.id
+    const deletedAt = new Date()
+
+    await prisma.bed.updateMany({ where: { room: { wardId: id } }, data: { isDeleted: true, deletedAt, deletedBy } })
+    await prisma.room.updateMany({ where: { wardId: id }, data: { isDeleted: true, deletedAt, deletedBy } })
+    await prisma.ward.update({ where: { id }, data: { isDeleted: true, deletedAt, deletedBy } })
 
     return NextResponse.json({ message: "Ward deleted" })
   } catch (error) {

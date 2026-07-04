@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
+import { getServerSession } from "next-auth"
 import { prisma } from "@/lib/prisma"
+import { authOptions } from "@/lib/auth"
 import { z } from "zod"
 import { getToken } from "next-auth/jwt"
 
@@ -73,7 +75,11 @@ export async function DELETE(
     if (adminCheck) return adminCheck
 
     const { id } = await params
-    await prisma.service.delete({ where: { id } })
+    const session = await getServerSession(authOptions)
+    await prisma.service.update({
+      where: { id },
+      data: { isDeleted: true, deletedAt: new Date(), deletedBy: session?.user?.id },
+    })
     return NextResponse.json({ message: "Deleted" })
   } catch (error) {
     return NextResponse.json({ error: "Failed" }, { status: 500 })

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
+import { getServerSession } from "next-auth"
 import { prisma } from "@/lib/prisma"
+import { authOptions } from "@/lib/auth"
 import { z } from "zod"
 
 const updateAppointmentSchema = z.object({
@@ -85,6 +87,7 @@ export async function PUT(
           time: checkTime,
           status: { not: "cancelled" },
           id: { not: id },
+          isDeleted: { isSet: false },
         },
         select: { id: true, appointmentNumber: true },
       })
@@ -106,6 +109,7 @@ export async function PUT(
           where: {
             doctorId: checkDoctor,
             date: { gte: countDayStart, lte: countDayEnd },
+            isDeleted: { isSet: false },
           },
         }) + 1
       }
@@ -124,5 +128,22 @@ export async function PUT(
     return NextResponse.json(appointment)
   } catch {
     return NextResponse.json({ error: "Failed to update appointment" }, { status: 500 })
+  }
+}
+
+export async function DELETE(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params
+    const session = await getServerSession(authOptions)
+    await prisma.appointment.update({
+      where: { id },
+      data: { isDeleted: true, deletedAt: new Date(), deletedBy: session?.user?.id },
+    })
+    return NextResponse.json({ message: "Appointment deleted" })
+  } catch {
+    return NextResponse.json({ error: "Failed to delete appointment" }, { status: 500 })
   }
 }

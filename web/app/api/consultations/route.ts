@@ -61,6 +61,9 @@ export async function POST(request: NextRequest) {
       patientId,
       doctorId,
       ...data,
+      chiefComplaint: data.chiefComplaint || "",
+      symptoms: data.symptoms || "",
+      diagnosis: data.diagnosis || "",
       temperature: data.temperature ?? undefined,
       bloodPressure: data.bloodPressure || undefined,
       pulse: data.pulse ?? undefined,
@@ -82,13 +85,6 @@ export async function POST(request: NextRequest) {
         doctor: { include: { user: true } },
       },
     })
-
-    if (appointmentId) {
-      await prisma.appointment.update({
-        where: { id: appointmentId },
-        data: { status: "completed" },
-      })
-    }
 
     return NextResponse.json(consultation, { status: 201 })
   } catch (error) {

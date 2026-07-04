@@ -7,7 +7,7 @@ export async function GET(request: NextRequest) {
     const wardId = searchParams.get("wardId")
     const status = searchParams.get("status")
 
-    const where: any = {}
+    const where: any = { isDeleted: { isSet: false } }
     if (wardId) where.room = { wardId }
     if (status) where.status = status
 

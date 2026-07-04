@@ -83,7 +83,7 @@ export default function AppointmentsPage() {
           <h1 className="text-3xl font-bold text-gray-900">Appointments</h1>
           <p className="text-gray-600 mt-1">Manage patient appointments and schedules</p>
         </div>
-        <Link href="/appointments/new">
+        <Link href="/patients/register">
           <Button>
             <Plus className="mr-2 h-4 w-4" />
             Book Appointment
@@ -115,7 +115,7 @@ export default function AppointmentsPage() {
             <div className="text-center py-12">
               <CalendarX className="h-12 w-12 text-gray-300 mx-auto mb-3" />
               <p className="text-gray-500">No appointments found</p>
-              <Link href="/appointments/new">
+              <Link href="/patients/register">
                 <Button className="mt-4" size="sm">Book Appointment</Button>
               </Link>
             </div>

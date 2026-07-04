@@ -6,9 +6,9 @@ const prescriptionMedicineSchema = z.object({
   medicineId: z.string().optional().or(z.literal("")),
   medicineName: z.string().min(1, "Medicine name is required").optional(),
   name: z.string().min(1, "Medicine name is required").optional(),
-  dose: z.string().min(1, "Dose is required"),
-  frequency: z.string().min(1, "Frequency is required"),
-  duration: z.string().min(1, "Duration is required"),
+  dose: z.string().optional().or(z.literal("")),
+  frequency: z.string().optional().or(z.literal("")),
+  duration: z.string().optional().or(z.literal("")),
   instructions: z.string().optional().or(z.literal("")),
 }).refine(data => data.medicineName || data.name, { message: "Medicine name is required" })
 
@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
       let medicineId = m.medicineId || ""
 
       if (!medicineId && medicineName) {
-        let medicine = await prisma.medicine.findFirst({ where: { name: { equals: medicineName, mode: "insensitive" } } })
+        let medicine = await prisma.medicine.findFirst({ where: { name: { equals: medicineName, mode: "insensitive" }, isDeleted: { isSet: false } } })
         if (!medicine) {
           medicine = await prisma.medicine.create({ data: { name: medicineName, unit: "tablet", price: 0, stock: 0 } })
         }
@@ -71,9 +71,9 @@ export async function POST(request: NextRequest) {
       medicinesToCreate.push({
         medicineId,
         medicineName,
-        dose: m.dose,
-        frequency: m.frequency,
-        duration: m.duration,
+        dose: m.dose || "",
+        frequency: m.frequency || "",
+        duration: m.duration || "",
         instructions: m.instructions || undefined,
       })
     }

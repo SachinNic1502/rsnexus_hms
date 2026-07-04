@@ -139,11 +139,10 @@ export default function DashboardPage() {
   ]
 
   const quickActions = [
-    ...(hasRole(['super_admin', 'hospital_admin', 'receptionist']) ? [
-      { href: '/patients/new', label: 'New Patient', icon: Users },
-      { href: '/appointments/new', label: 'Book Appointment', icon: Calendar },
+    ...(hasRole(['hospital_admin', 'receptionist']) ? [
+      { href: '/patients/register', label: 'Patient Registration', icon: Users },
     ] : []),
-    ...(hasRole(['super_admin', 'hospital_admin', 'doctor', 'nurse']) ? [
+    ...(hasRole(['hospital_admin', 'doctor', 'nurse']) ? [
       { href: '/ipd/admit', label: 'Admit Patient', icon: BedDouble },
     ] : []),
     ...(hasRole(['super_admin', 'hospital_admin', 'billing_staff']) ? [

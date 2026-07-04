@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { ArrowLeft, Save, Calendar, Clock, User, Stethoscope, Loader2, AlertCircle } from 'lucide-react'
+import { ArrowLeft, Save, Calendar, Clock, User, Stethoscope, Loader2, AlertCircle, Activity, Thermometer, Heart, Weight, Ruler } from 'lucide-react'
 import Link from 'next/link'
 import { useToast } from '@/components/ui/toast'
 
@@ -46,6 +46,12 @@ function EditAppointmentForm() {
     consultationType: 'new',
   })
 
+  // Vitals (recorded by reception; stored on the visit's consultation)
+  const [consultationId, setConsultationId] = useState<string | null>(null)
+  const [vitals, setVitals] = useState({
+    bloodPressure: '', oxygenSaturation: '', height: '', weight: '', temperature: '', pulse: '',
+  })
+
   useEffect(() => {
     fetchAppointment()
     fetchDepartments()
@@ -72,6 +78,20 @@ function EditAppointmentForm() {
         time: apt.time,
         consultationType: apt.consultationType,
       })
+
+      // Prefill vitals from the existing consultation (if reception already recorded any)
+      const existingConsultation = apt.consultation as Record<string, unknown> | null
+      if (existingConsultation) {
+        setConsultationId(existingConsultation.id as string)
+        setVitals({
+          bloodPressure: (existingConsultation.bloodPressure as string) || '',
+          oxygenSaturation: existingConsultation.oxygenSaturation != null ? String(existingConsultation.oxygenSaturation) : '',
+          height: existingConsultation.height != null ? String(existingConsultation.height) : '',
+          weight: existingConsultation.weight != null ? String(existingConsultation.weight) : '',
+          temperature: existingConsultation.temperature != null ? String(existingConsultation.temperature) : '',
+          pulse: existingConsultation.pulse != null ? String(existingConsultation.pulse) : '',
+        })
+      }
     } catch (err) {
       setError('Failed to load appointment')
     } finally {
@@ -113,6 +133,36 @@ function EditAppointmentForm() {
         const data = await res.json()
         throw new Error(data.error || 'Failed to update appointment')
       }
+
+      // Persist vitals onto the visit's consultation so they surface on the doctor & patient pages
+      const hasVitals = Object.values(vitals).some(v => v !== '')
+      if (hasVitals && appointment) {
+        try {
+          const vitalsRes = consultationId
+            ? await fetch(`/api/consultations/${consultationId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(vitals),
+              })
+            : await fetch('/api/consultations', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  appointmentId: appointment.id,
+                  patientId: appointment.patient.id,
+                  doctorId: formData.doctorId,
+                  ...vitals,
+                }),
+              })
+          if (!vitalsRes.ok) {
+            const d = await vitalsRes.json().catch(() => ({}))
+            toast(d.error || 'Appointment updated, but vitals could not be saved', 'error')
+          }
+        } catch {
+          toast('Appointment updated, but vitals could not be saved', 'error')
+        }
+      }
+
       toast('Appointment updated successfully', 'success')
       router.push('/appointments')
     } catch (err) {
@@ -303,6 +353,23 @@ function EditAppointmentForm() {
                   <p className="text-xs text-gray-500">{opt.desc}</p>
                 </button>
               ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Vitals */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-semibold text-gray-700 uppercase tracking-wide flex items-center gap-2"><Activity className="h-4 w-4" /> Vitals</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              <div className="space-y-1"><label className="text-sm font-medium flex items-center gap-1"><Heart className="h-3 w-3" /> Blood Pressure</label><Input value={vitals.bloodPressure} onChange={e => setVitals({ ...vitals, bloodPressure: e.target.value })} placeholder="120/80" /></div>
+              <div className="space-y-1"><label className="text-sm font-medium">SpO2 (%)</label><Input type="number" value={vitals.oxygenSaturation} onChange={e => setVitals({ ...vitals, oxygenSaturation: e.target.value })} placeholder="98" /></div>
+              <div className="space-y-1"><label className="text-sm font-medium flex items-center gap-1"><Ruler className="h-3 w-3" /> Height (cm)</label><Input type="number" value={vitals.height} onChange={e => setVitals({ ...vitals, height: e.target.value })} placeholder="170" /></div>
+              <div className="space-y-1"><label className="text-sm font-medium flex items-center gap-1"><Weight className="h-3 w-3" /> Weight (kg)</label><Input type="number" step="0.1" value={vitals.weight} onChange={e => setVitals({ ...vitals, weight: e.target.value })} placeholder="70" /></div>
+              <div className="space-y-1"><label className="text-sm font-medium flex items-center gap-1"><Thermometer className="h-3 w-3" /> Temp (°F)</label><Input type="number" step="0.1" value={vitals.temperature} onChange={e => setVitals({ ...vitals, temperature: e.target.value })} placeholder="98.6" /></div>
+              <div className="space-y-1"><label className="text-sm font-medium">Pulse (bpm)</label><Input type="number" value={vitals.pulse} onChange={e => setVitals({ ...vitals, pulse: e.target.value })} placeholder="72" /></div>
             </div>
           </CardContent>
         </Card>

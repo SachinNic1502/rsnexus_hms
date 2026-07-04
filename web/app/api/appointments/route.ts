@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
     const date = searchParams.get("date")
     const doctorId = searchParams.get("doctorId")
 
-    const where: AppointmentWhereInput = {}
+    const where: AppointmentWhereInput = { isDeleted: { isSet: false } }
     if (status && status !== "all") {
       where.status = status as 'scheduled' | 'waiting' | 'in_progress' | 'completed' | 'cancelled'
     }
@@ -64,6 +64,7 @@ export async function POST(request: NextRequest) {
         date: { gte: dayStart, lte: dayEnd },
         time,
         status: { not: 'cancelled' },
+        isDeleted: { isSet: false },
       },
       select: { id: true, appointmentNumber: true },
     })
@@ -85,6 +86,7 @@ export async function POST(request: NextRequest) {
       where: {
         doctorId,
         date: { gte: dayStart, lte: dayEnd },
+        isDeleted: { isSet: false },
       },
     }) + 1
 

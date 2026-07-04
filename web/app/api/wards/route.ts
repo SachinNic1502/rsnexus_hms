@@ -11,10 +11,12 @@ const wardSchema = z.object({
 export async function GET() {
   try {
     const wards = await prisma.ward.findMany({
+      where: { isDeleted: { isSet: false } },
       include: {
         rooms: {
+          where: { isDeleted: { isSet: false } },
           include: {
-            beds: true,
+            beds: { where: { isDeleted: { isSet: false } } },
           },
         },
       },

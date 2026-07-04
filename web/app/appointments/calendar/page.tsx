@@ -123,7 +123,7 @@ export default function CalendarPage() {
             <h1 className="text-3xl font-bold text-gray-900">Appointment Calendar</h1>
             <p className="text-gray-600 mt-1">Weekly view of all appointments</p>
           </div>
-          <Link href="/appointments/new">
+          <Link href="/patients/register">
             <Button><Plus className="mr-2 h-4 w-4" /> Book Appointment</Button>
           </Link>
         </div>

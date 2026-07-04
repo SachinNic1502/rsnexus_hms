@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
+import { getServerSession } from "next-auth"
 import { prisma } from "@/lib/prisma"
+import { authOptions } from "@/lib/auth"
 import { z } from "zod"
 
 const createBedSchema = z.object({
@@ -39,7 +41,11 @@ export async function DELETE(
     if (bed.status === "occupied") {
       return NextResponse.json({ error: "Cannot delete occupied bed" }, { status: 400 })
     }
-    await prisma.bed.delete({ where: { id } })
+    const session = await getServerSession(authOptions)
+    await prisma.bed.update({
+      where: { id },
+      data: { isDeleted: true, deletedAt: new Date(), deletedBy: session?.user?.id },
+    })
     return NextResponse.json({ message: "Deleted" })
   } catch (error) {
     return NextResponse.json({ error: "Failed" }, { status: 500 })

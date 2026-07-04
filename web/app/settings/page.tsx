@@ -2,13 +2,14 @@
 
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { ArrowLeft, Users, Building2, Stethoscope, Settings as SettingsIcon } from 'lucide-react'
+import { ArrowLeft, Users, Building2, Stethoscope, HeartPulse, Settings as SettingsIcon } from 'lucide-react'
 import Link from 'next/link'
 
 const settingsPages = [
   { title: 'User Management', description: 'Manage system users, roles, and access', href: '/settings/users', icon: Users, color: 'bg-blue-500' },
   { title: 'Departments', description: 'Manage hospital departments', href: '/settings/departments', icon: Building2, color: 'bg-green-500' },
   { title: 'Doctor Management', description: 'Manage doctor availability and specializations', href: '/settings/doctors', icon: Stethoscope, color: 'bg-purple-500' },
+  { title: 'Nurse / Compounder Management', description: 'Register nurses and compounders', href: '/settings/nurses', icon: HeartPulse, color: 'bg-pink-500' },
 ]
 
 export default function SettingsPage() {

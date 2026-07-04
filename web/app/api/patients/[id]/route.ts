@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
+import { getServerSession } from "next-auth"
 import { prisma } from "@/lib/prisma"
+import { authOptions } from "@/lib/auth"
 
 export async function GET(
   request: NextRequest,
@@ -11,12 +13,13 @@ export async function GET(
       where: { id },
       include: {
         appointments: {
+          where: { isDeleted: { isSet: false } },
           include: { doctor: { include: { user: true } }, department: true },
           orderBy: { createdAt: "desc" },
           take: 10,
         },
         consultations: {
-          include: { doctor: { include: { user: true } }, prescription: true },
+          include: { doctor: { include: { user: true } }, prescription: { include: { medicines: true } } },
           orderBy: { createdAt: "desc" },
           take: 10,
         },
@@ -73,5 +76,22 @@ export async function PUT(
     return NextResponse.json(patient)
   } catch (error) {
     return NextResponse.json({ error: "Failed to update patient" }, { status: 500 })
+  }
+}
+
+export async function DELETE(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params
+    const session = await getServerSession(authOptions)
+    await prisma.patient.update({
+      where: { id },
+      data: { isDeleted: true, deletedAt: new Date(), deletedBy: session?.user?.id },
+    })
+    return NextResponse.json({ message: "Patient deleted" })
+  } catch (error) {
+    return NextResponse.json({ error: "Failed to delete patient" }, { status: 500 })
   }
 }

@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get("search") || ""
     const searchType = searchParams.get("searchType") || "name"
 
-    const where: PatientWhereInput = {}
+    const where: PatientWhereInput = { isDeleted: { isSet: false } }
     if (search) {
       if (searchType === "uhid") {
         where.uhid = { contains: search, mode: "insensitive" }
@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
     const { name, mobile, gender, dateOfBirth, age, address, bloodGroup, emergencyContact, emergencyContactNumber } = parsed.data
 
     const existingPatient = await prisma.patient.findFirst({
-      where: { mobile },
+      where: { mobile, isDeleted: { isSet: false } },
       select: { id: true, uhid: true, name: true },
     })
     if (existingPatient) {

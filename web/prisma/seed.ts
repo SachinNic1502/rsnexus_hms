@@ -34,18 +34,29 @@ async function main() {
 
   const passwordHash = hashSync("password", 10)
 
-  // ─── Admin User (required for login) ────────────────────
-  const admin = await prisma.user.upsert({
-    where: { email: "admin@rsnexus.com" },
-    update: {},
-    create: {
-      email: "admin@rsnexus.com",
-      name: "Admin",
-      role: UserRole.super_admin,
-      passwordHash,
-    },
-  })
-  console.log(`Created admin user: ${admin.email}`)
+  // ─── Users by Role ──────────────────────────────────────
+  const usersData = [
+    { email: "admin@rsnexus.com", name: "Admin", role: UserRole.super_admin },
+    { email: "hospital.admin@rsnexus.com", name: "Hospital Admin", role: UserRole.hospital_admin },
+    { email: "receptionist@rsnexus.com", name: "Priya Sharma", role: UserRole.receptionist },
+    { email: "doctor@rsnexus.com", name: "Arun Mehta", role: UserRole.doctor },
+    { email: "doctor2@rsnexus.com", name: "Neha Kapoor", role: UserRole.doctor },
+    { email: "nurse@rsnexus.com", name: "Sunita Patel", role: UserRole.nurse },
+    { email: "lab@rsnexus.com", name: "Rahul Verma", role: UserRole.lab_technician },
+    { email: "pharmacist@rsnexus.com", name: "Amit Singh", role: UserRole.pharmacist },
+    { email: "billing@rsnexus.com", name: "Sneha Reddy", role: UserRole.billing_staff },
+  ]
+
+  const createdUsers: Record<string, string> = {}
+  for (const u of usersData) {
+    const user = await prisma.user.upsert({
+      where: { email: u.email },
+      update: {},
+      create: { email: u.email, name: u.name, role: u.role, passwordHash },
+    })
+    createdUsers[u.role] = user.id
+    console.log(`Created user: ${u.email} (${u.role})`)
+  }
 
   // ─── Departments ───────────────────────────────────────
   const deptData = [
@@ -67,6 +78,30 @@ async function main() {
     departments.push(dept)
   }
   console.log(`Created ${departments.length} departments`)
+
+  // ─── Doctor Records ─────────────────────────────────────
+  const doctorUsers = [
+    { email: "doctor@rsnexus.com", deptIndex: 4, specialization: "General Physician", qualification: "MBBS, MD" },
+    { email: "doctor2@rsnexus.com", deptIndex: 0, specialization: "Cardiologist", qualification: "MBBS, MD, DM" },
+  ]
+
+  for (const d of doctorUsers) {
+    const user = await prisma.user.findUnique({ where: { email: d.email } })
+    if (user) {
+      await prisma.doctor.upsert({
+        where: { userId: user.id },
+        update: {},
+        create: {
+          userId: user.id,
+          departmentId: departments[d.deptIndex].id,
+          specialization: d.specialization,
+          qualification: d.qualification,
+          available: true,
+        },
+      })
+    }
+  }
+  console.log(`Created ${doctorUsers.length} doctor records`)
 
   // ─── Wards ─────────────────────────────────────────────
   const wardData = [
@@ -160,7 +195,15 @@ async function main() {
   console.log(`Created ${serviceData.length} services`)
 
   console.log("\nSeeding completed!")
-  console.log("Login with: admin@rsnexus.com / <password from .env>")
+  console.log("Login credentials (password: \"password\"):")
+  console.log("  super_admin    -> admin@rsnexus.com")
+  console.log("  hospital_admin -> hospital.admin@rsnexus.com")
+  console.log("  receptionist   -> receptionist@rsnexus.com")
+  console.log("  doctor         -> doctor@rsnexus.com / doctor2@rsnexus.com")
+  console.log("  nurse          -> nurse@rsnexus.com")
+  console.log("  lab_technician -> lab@rsnexus.com")
+  console.log("  pharmacist     -> pharmacist@rsnexus.com")
+  console.log("  billing_staff  -> billing@rsnexus.com")
 }
 
 main()

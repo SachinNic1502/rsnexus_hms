@@ -23,34 +23,85 @@ import {
   FileText,
 } from 'lucide-react'
 
-const navigation = [
-  // Receptionist Menu
-  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, roles: ['receptionist'] as UserRole[] },
-  { name: 'Patient Registration', href: '/registration', icon: UserPlus, roles: ['receptionist'] as UserRole[] },
-  { name: 'Appointments', href: '/appointments', icon: Calendar, roles: ['receptionist'] as UserRole[] },
-  { name: 'Patient List', href: '/patients', icon: Users, roles: ['receptionist'] as UserRole[] },
-  { name: 'Billing', href: '/billing', icon: DollarSign, roles: ['receptionist'] as UserRole[] },
-  { name: 'Reports', href: '/reports', icon: BarChart3, roles: ['receptionist'] as UserRole[] },
-
-  // Doctor Menu
-  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, roles: ['doctor'] as UserRole[] },
-  { name: 'Today\'s Patients', href: '/opd', icon: Stethoscope, roles: ['doctor'] as UserRole[] },
-  { name: 'Consultation', href: '/opd', icon: Stethoscope, roles: ['doctor'] as UserRole[] },
-  { name: 'History', href: '/patients', icon: FileText, roles: ['doctor'] as UserRole[] },
-  { name: 'Prescriptions', href: '/prescriptions', icon: Pill, roles: ['doctor'] as UserRole[] },
-
-  // Admin Menu (Super Admin & Hospital Admin)
-  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, roles: ['super_admin', 'hospital_admin'] as UserRole[] },
-  { name: 'Users', href: '/settings/users', icon: Users, roles: ['super_admin', 'hospital_admin'] as UserRole[] },
-  { name: 'Medicines', href: '/medicines', icon: Pill, roles: ['super_admin', 'hospital_admin'] as UserRole[] },
-  { name: 'Settings', href: '/settings', icon: Settings, roles: ['super_admin', 'hospital_admin'] as UserRole[] },
-  { name: 'Reports', href: '/reports', icon: BarChart3, roles: ['super_admin', 'hospital_admin'] as UserRole[] },
+const sections = [
+  // Receptionist
+  {
+    label: 'Receptionist',
+    roles: ['receptionist'] as UserRole[],
+    items: [
+      { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+      { name: 'Patient Registration', href: '/registration', icon: UserPlus },
+      { name: 'Appointments', href: '/appointments', icon: Calendar },
+      { name: 'Patient List', href: '/patients', icon: Users },
+      { name: 'Billing', href: '/billing', icon: DollarSign },
+      { name: 'Reports', href: '/reports', icon: BarChart3 },
+    ],
+  },
+  // Doctor
+  {
+    label: 'Doctor',
+    roles: ['doctor'] as UserRole[],
+    items: [
+      { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+      { name: 'Today\'s Patients', href: '/opd', icon: Stethoscope },
+      { name: 'History', href: '/patients', icon: FileText },
+      { name: 'Prescriptions', href: '/prescriptions', icon: Pill },
+    ],
+  },
+  // Billing Staff
+  {
+    label: 'Billing',
+    roles: ['billing_staff'] as UserRole[],
+    items: [
+      { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+      { name: 'Billing', href: '/billing', icon: DollarSign },
+      { name: 'Reports', href: '/reports', icon: BarChart3 },
+    ],
+  },
+  // Lab Technician
+  {
+    label: 'Lab',
+    roles: ['lab_technician'] as UserRole[],
+    items: [
+      { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+      { name: 'Lab Orders', href: '/lab', icon: Stethoscope },
+    ],
+  },
+  // Pharmacist
+  {
+    label: 'Pharmacy',
+    roles: ['pharmacist'] as UserRole[],
+    items: [
+      { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+      { name: 'Prescriptions', href: '/prescriptions', icon: FileText },
+      { name: 'Medicines', href: '/medicines', icon: Pill },
+    ],
+  },
+  // Admin (Super Admin & Hospital Admin)
+  {
+    label: 'Administration',
+    roles: ['super_admin', 'hospital_admin'] as UserRole[],
+    items: [
+      { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+      { name: 'Users', href: '/settings/users', icon: Users },
+      { name: 'Medicines', href: '/medicines', icon: Pill },
+      { name: 'Settings', href: '/settings', icon: Settings },
+      { name: 'Reports', href: '/reports', icon: BarChart3 },
+    ],
+  },
 ]
+
+function isActiveMatch(pathname: string, href: string): boolean {
+  if (pathname === href) return true
+  // Exact parent match (e.g. /settings matches /settings/users but not /settings-users)
+  if (href !== '/' && pathname.startsWith(href + '/')) return true
+  return false
+}
 
 function SidebarContent({ onLinkClick }: { onLinkClick?: () => void }) {
   const pathname = usePathname()
   const { user, logout, hasRole } = useAuth()
-  const visibleNav = navigation.filter(item => !item.roles || hasRole(item.roles))
+  const visibleSections = sections.filter(s => !s.roles || hasRole(s.roles))
 
   return (
     <div className="flex h-full flex-col bg-slate-900 text-white">
@@ -62,26 +113,35 @@ function SidebarContent({ onLinkClick }: { onLinkClick?: () => void }) {
         </div>
       </div>
 
-      <nav className="flex-1 space-y-1 p-4 overflow-y-auto">
-        {visibleNav.map((item) => {
-          const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`)
-          return (
-            <Link
-              key={item.name}
-              href={item.href}
-              onClick={onLinkClick}
-              className={cn(
-                'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
-                isActive
-                  ? 'bg-blue-600 text-white'
-                  : 'text-slate-300 hover:bg-slate-800 hover:text-white'
-              )}
-            >
-              <item.icon className="h-5 w-5 shrink-0" />
-              <span>{item.name}</span>
-            </Link>
-          )
-        })}
+      <nav className="flex-1 space-y-6 p-4 overflow-y-auto">
+        {visibleSections.map((section) => (
+          <div key={section.label}>
+            <p className="px-3 mb-1 text-xs font-semibold uppercase tracking-wider text-slate-500">
+              {section.label}
+            </p>
+            <div className="space-y-1">
+              {section.items.map((item) => {
+                const isActive = isActiveMatch(pathname, item.href)
+                return (
+                  <Link
+                    key={item.name}
+                    href={item.href}
+                    onClick={onLinkClick}
+                    className={cn(
+                      'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
+                      isActive
+                        ? 'bg-blue-600 text-white'
+                        : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                    )}
+                  >
+                    <item.icon className="h-5 w-5 shrink-0" />
+                    <span>{item.name}</span>
+                  </Link>
+                )
+              })}
+            </div>
+          </div>
+        ))}
       </nav>
 
       <div className="border-t border-slate-800 p-4">

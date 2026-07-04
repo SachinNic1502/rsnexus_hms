@@ -15,6 +15,9 @@ import {
   AlertCircle,
   Loader2,
   Settings,
+  Stethoscope,
+  FileText,
+  Pill,
 } from 'lucide-react'
 import Link from 'next/link'
 import { useAuth } from '@/lib/auth-context'
@@ -107,29 +110,49 @@ export default function DashboardPage() {
     )
   }
 
+  const roleWelcome: Record<string, string> = {
+    receptionist: 'Manage registrations, appointments, and billing.',
+    doctor: 'View today\'s patients, consultations, and prescriptions.',
+    billing_staff: 'Manage invoices and payments.',
+    lab_technician: 'Process lab orders and reports.',
+    pharmacist: 'Manage prescriptions and medicine inventory.',
+    nurse: 'Monitor admissions and bed availability.',
+    hospital_admin: 'Manage users, medicines, and system settings.',
+    super_admin: 'Full system oversight and configuration.',
+  }
+
+  const isAdmin = hasRole(['super_admin', 'hospital_admin'])
+  const isReceptionist = hasRole(['receptionist'])
+  const isDoctor = hasRole(['doctor'])
+  const isNurse = hasRole(['nurse'])
+  const isBilling = hasRole(['billing_staff'])
+  const isLab = hasRole(['lab_technician'])
+  const isPharmacist = hasRole(['pharmacist'])
+  const showIpd = isAdmin || isNurse
+
   const statCards = [
-    ...(hasRole(['super_admin', 'hospital_admin', 'receptionist', 'doctor', 'nurse']) ? [{
+    ...(hasRole(['super_admin', 'hospital_admin', 'receptionist', 'doctor', 'nurse', 'billing_staff', 'lab_technician', 'pharmacist']) ? [{
       title: "Today's Appointments",
       value: stats?.todayAppointments || 0,
       icon: Calendar,
       color: 'text-blue-600',
       bgColor: 'bg-blue-100',
     }] : []),
-    ...(hasRole(['super_admin', 'hospital_admin', 'doctor', 'nurse']) ? [{
+    ...(showIpd ? [{
       title: 'Admitted Patients',
       value: stats?.admittedPatients || 0,
       icon: Users,
       color: 'text-green-600',
       bgColor: 'bg-green-100',
     }] : []),
-    ...(hasRole(['super_admin', 'hospital_admin', 'nurse']) ? [{
+    ...(showIpd ? [{
       title: 'Available Beds',
       value: stats?.availableBeds || 0,
       icon: BedDouble,
       color: 'text-purple-600',
       bgColor: 'bg-purple-100',
     }] : []),
-    ...(hasRole(['super_admin', 'hospital_admin', 'billing_staff']) ? [{
+    ...(isAdmin || isReceptionist || isBilling ? [{
       title: 'Pending Bills',
       value: stats?.pendingBills || 0,
       icon: DollarSign,
@@ -139,18 +162,28 @@ export default function DashboardPage() {
   ]
 
   const quickActions = [
-    ...(hasRole(['super_admin', 'hospital_admin', 'receptionist']) ? [
-      { href: '/patients/new', label: 'New Patient', icon: Users },
-      { href: '/appointments/new', label: 'Book Appointment', icon: Calendar },
+    ...(isAdmin || isReceptionist ? [
+      { href: '/registration', label: 'New Patient', icon: Users },
+      { href: '/registration', label: 'Book Appointment', icon: Calendar },
     ] : []),
-    ...(hasRole(['super_admin', 'hospital_admin', 'doctor', 'nurse']) ? [
+    ...(isDoctor ? [
+      { href: '/opd', label: 'Today\'s OPD', icon: Stethoscope },
+    ] : []),
+    ...(showIpd ? [
       { href: '/ipd/admit', label: 'Admit Patient', icon: BedDouble },
     ] : []),
-    ...(hasRole(['super_admin', 'hospital_admin', 'billing_staff']) ? [
-      { href: '/billing/new', label: 'Generate Bill', icon: DollarSign },
+    ...(isAdmin || isBilling || isReceptionist ? [
+      { href: '/billing', label: 'View Billing', icon: DollarSign },
     ] : []),
-    ...(hasRole(['super_admin', 'hospital_admin']) ? [
-      { href: '/settings', label: 'Settings', icon: Settings },
+    ...(isAdmin ? [
+      { href: '/settings/users', label: 'Manage Users', icon: Settings },
+    ] : []),
+    ...(isLab ? [
+      { href: '/lab', label: 'Lab Orders', icon: Stethoscope },
+    ] : []),
+    ...(isPharmacist ? [
+      { href: '/prescriptions', label: 'Prescriptions', icon: FileText },
+      { href: '/medicines', label: 'Medicines', icon: Pill },
     ] : []),
   ]
 
@@ -158,7 +191,9 @@ export default function DashboardPage() {
     <div className="p-8">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-        <p className="text-gray-600 mt-1">Welcome back! Here&apos;s what&apos;s happening today.</p>
+        <p className="text-gray-600 mt-1">
+          Welcome back{user?.name ? `, ${user.name.split(' ')[0]}` : ''}! {roleWelcome[user?.role as string] || 'Here&apos;s what&apos;s happening today.'}
+        </p>
       </div>
 
       {/* Stats Grid */}
@@ -201,7 +236,7 @@ export default function DashboardPage() {
           <CardContent>
             <div className="flex flex-wrap gap-4">
               {quickActions.map((action) => (
-                <Link key={action.href} href={action.href}>
+                <Link key={`${action.href}-${action.label}`} href={action.href}>
                   <Button>
                     <action.icon className="mr-2 h-4 w-4" />
                     {action.label}
@@ -251,41 +286,43 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* Recent Admissions */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Recent Admissions</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {recentAdmissions.length === 0 ? (
-                <p className="text-sm text-gray-500 text-center py-4">No active admissions</p>
-              ) : (
-                recentAdmissions.map((admission) => (
-                  <div
-                    key={admission.id}
-                    className="flex items-center justify-between p-3 rounded-lg border hover:bg-gray-50 transition-colors"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 rounded-full bg-green-100">
-                        <BedDouble className="h-4 w-4 text-green-600" />
+        {/* Recent Admissions - IPD only for admin/nurse */}
+        {showIpd && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Recent Admissions</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {recentAdmissions.length === 0 ? (
+                  <p className="text-sm text-gray-500 text-center py-4">No active admissions</p>
+                ) : (
+                  recentAdmissions.map((admission) => (
+                    <div
+                      key={admission.id}
+                      className="flex items-center justify-between p-3 rounded-lg border hover:bg-gray-50 transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 rounded-full bg-green-100">
+                          <BedDouble className="h-4 w-4 text-green-600" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-sm">{admission.patient}</p>
+                          <p className="text-xs text-gray-600">
+                            {admission.ward} - Room {admission.room}, Bed {admission.bed}
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-medium text-sm">{admission.patient}</p>
-                        <p className="text-xs text-gray-600">
-                          {admission.ward} - Room {admission.room}, Bed {admission.bed}
-                        </p>
+                      <div className="text-right">
+                        <Badge variant="success">Active</Badge>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <Badge variant="success">Active</Badge>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </CardContent>
-        </Card>
+                  ))
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       {/* Doctor Availability */}

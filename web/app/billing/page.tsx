@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { Plus, DollarSign, Loader2, AlertCircle, Printer, ArrowLeft, FileText, Receipt } from 'lucide-react'
 import Link from 'next/link'
 import { useToast } from '@/components/ui/toast'
+import { useAuth } from '@/lib/auth-context'
 
 interface InvoiceItem {
   description: string
@@ -33,6 +34,8 @@ export default function BillingPage() {
   const searchParams = useSearchParams()
   const filterPatientId = searchParams.get('patientId')
   const { toast } = useToast()
+  const { user } = useAuth()
+  const canManageBilling = user?.role !== 'super_admin'
   const [invoices, setInvoices] = useState<Invoice[]>([])
   const [loading, setLoading] = useState(true)
   const [filterStatus, setFilterStatus] = useState('all')
@@ -71,7 +74,9 @@ export default function BillingPage() {
         </div>
         <div className="flex gap-2">
           <Link href="/billing/pending"><Button variant="outline"><AlertCircle className="mr-2 h-4 w-4" />Pending Payments</Button></Link>
-          <Link href="/billing/new"><Button><Plus className="mr-2 h-4 w-4" />New Invoice</Button></Link>
+          {canManageBilling && (
+            <Link href="/billing/new"><Button><Plus className="mr-2 h-4 w-4" />New Invoice</Button></Link>
+          )}
         </div>
       </div>
 
@@ -91,9 +96,11 @@ export default function BillingPage() {
             <div className="text-center py-12">
               <Receipt className="h-12 w-12 text-gray-300 mx-auto mb-3" />
               <p className="text-gray-500">{filterPatientId ? 'No invoices found for this patient' : 'No invoices found'}</p>
-              <Link href="/billing/new">
-                <Button className="mt-4" size="sm">New Invoice</Button>
-              </Link>
+              {canManageBilling && (
+                <Link href="/billing/new">
+                  <Button className="mt-4" size="sm">New Invoice</Button>
+                </Link>
+              )}
             </div>
           ) : invoices.map((inv) => {
             const paid = inv.payments.reduce((s, p) => s + p.amount, 0)
@@ -144,7 +151,7 @@ export default function BillingPage() {
                     </div>
                     <div className="text-right ml-4">
                       <div className="flex gap-1">
-                        {inv.status !== 'paid' && (
+                        {inv.status !== 'paid' && canManageBilling && (
                           <Link href={`/billing/${inv.id}/payment`}>
                             <Button size="sm">Pay</Button>
                           </Link>

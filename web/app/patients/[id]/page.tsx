@@ -117,6 +117,7 @@ export default function PatientDetailPage() {
 
   const isFrontDesk = hasRole(['super_admin', 'hospital_admin', 'receptionist'])
   const isDoctor = hasRole(['doctor'])
+  const isNurse = hasRole(['nurse'])
 
   useEffect(() => {
     fetchPatient()
@@ -248,6 +249,10 @@ export default function PatientDetailPage() {
                 const consultation = consultationByAppointment.get(visit.id)
                 const invoices = invoicesByAppointment.get(visit.id) || []
                 const prescription = consultation?.prescription
+                const nurseTimingAdded = prescription?.medicines?.some(
+                  (m: any) => m.timing || m.foodInstructions || m.usageInstructions
+                )
+                const canBillThisVisit = isFrontDesk || (isNurse && nurseTimingAdded)
                 const vitalsParts = consultation ? [
                   consultation.bloodPressure ? `BP ${consultation.bloodPressure}` : null,
                   consultation.oxygenSaturation ? `SpO2 ${consultation.oxygenSaturation}%` : null,
@@ -283,7 +288,7 @@ export default function PatientDetailPage() {
                           <div key={m.id} className="text-sm p-2 bg-blue-50 rounded">
                             <p className="font-medium">{m.medicineName}</p>
                             <p className="text-gray-600">{[m.dose, m.frequency, m.duration].filter(Boolean).join(' - ')}</p>
-                            {isFrontDesk && (
+                            {(isFrontDesk || isNurse) && (
                               <MedicineInstructionsEditor
                                 prescriptionId={prescription.id}
                                 medicine={m}
@@ -301,12 +306,12 @@ export default function PatientDetailPage() {
                     )}
 
                     <div className="flex items-center gap-3 flex-wrap pt-1">
-                      {prescription && (
+                      {prescription && !isDoctor && (
                         <Link href={`/prescriptions/${prescription.id}`}>
                           <Button variant="ghost" size="sm"><Printer className="h-4 w-4 mr-1" /> Print Prescription</Button>
                         </Link>
                       )}
-                      {isFrontDesk && invoices.length === 0 && consultation && (
+                      {canBillThisVisit && invoices.length === 0 && consultation && (
                         <Button size="sm" variant="outline" disabled={billingBusyId === consultation.id} onClick={() => generateBill(consultation.id)}>
                           {billingBusyId === consultation.id ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Receipt className="h-4 w-4 mr-1" />} Generate Bill
                         </Button>
@@ -314,7 +319,7 @@ export default function PatientDetailPage() {
                       {invoices.map((inv: any) => (
                         <div key={inv.id} className="flex items-center gap-2">
                           <Badge variant={inv.status === 'paid' ? 'success' : 'warning'}>{inv.invoiceNumber} &middot; {inv.status}</Badge>
-                          {isFrontDesk && inv.status !== 'paid' && (
+                          {canBillThisVisit && inv.status !== 'paid' && (
                             <Link href={`/billing/${inv.id}/payment`}><Button size="sm" variant="outline">Pay</Button></Link>
                           )}
                           <Link href={`/billing/${inv.id}/receipt`}><Button size="sm" variant="ghost"><Printer className="h-4 w-4 mr-1" /> Receipt</Button></Link>

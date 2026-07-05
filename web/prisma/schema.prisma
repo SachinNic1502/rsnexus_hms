@@ -303,6 +303,7 @@ model Ward {
   name      String   @unique
   type      WardType
   floor     Int
+  noOfBeds  Int?     @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   isDeleted Boolean?

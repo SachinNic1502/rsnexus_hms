@@ -28,6 +28,7 @@ interface Ward {
   name: string
   type: string
   floor: number
+  noOfBeds: number | null
   totalBeds: number
   availableBeds: number
   occupiedBeds: number
@@ -54,7 +55,7 @@ export default function WardsPage() {
   const [expandedWard, setExpandedWard] = useState<string | null>(null)
   const [showForm, setShowForm] = useState(false)
   const [editingWard, setEditingWard] = useState<Ward | null>(null)
-  const [formData, setFormData] = useState({ name: '', type: 'general', floor: 1 })
+  const [formData, setFormData] = useState({ name: '', type: 'general', floor: 1, noOfBeds: 0 })
   const [saving, setSaving] = useState(false)
   const [showRoomForm, setShowRoomForm] = useState<string | null>(null)
   const [roomForm, setRoomForm] = useState({ roomNumber: '', type: 'general', bedCount: '4', chargesPerDay: '500', autoCreateBeds: true })
@@ -84,7 +85,7 @@ export default function WardsPage() {
       if (res.ok) {
         setShowForm(false)
         setEditingWard(null)
-        setFormData({ name: '', type: 'general', floor: 1 })
+        setFormData({ name: '', type: 'general', floor: 1, noOfBeds: 0 })
         fetchWards()
       }
     } catch (e) { toast('Failed to save ward', 'error') }
@@ -105,7 +106,7 @@ export default function WardsPage() {
 
   const startEdit = (ward: Ward) => {
     setEditingWard(ward)
-    setFormData({ name: ward.name, type: ward.type, floor: ward.floor })
+    setFormData({ name: ward.name, type: ward.type, floor: ward.floor, noOfBeds: ward.noOfBeds ?? ward.totalBeds ?? 0 })
     setShowForm(true)
   }
 
@@ -140,7 +141,7 @@ export default function WardsPage() {
             <Link href="/wards/beds">
               <Button variant="outline"><Bed className="mr-2 h-4 w-4" /> Bed Dashboard</Button>
             </Link>
-            <Button onClick={() => { setEditingWard(null); setFormData({ name: '', type: 'general', floor: 1 }); setShowForm(true) }}>
+            <Button onClick={() => { setEditingWard(null); setFormData({ name: '', type: 'general', floor: 1, noOfBeds: 0 }); setShowForm(true) }}>
               <Plus className="mr-2 h-4 w-4" /> Add Ward
             </Button>
           </div>
@@ -154,7 +155,7 @@ export default function WardsPage() {
             <CardTitle>{editingWard ? 'Edit Ward' : 'Add New Ward'}</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-4 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Ward Name</label>
                 <input
@@ -186,6 +187,16 @@ export default function WardsPage() {
                   onChange={(e) => setFormData({ ...formData, floor: parseInt(e.target.value) || 1 })}
                   className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
                   min={1}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">No. of Beds</label>
+                <input
+                  type="number"
+                  value={formData.noOfBeds}
+                  onChange={(e) => setFormData({ ...formData, noOfBeds: parseInt(e.target.value) || 0 })}
+                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
+                  min={0}
                 />
               </div>
             </div>
@@ -231,7 +242,7 @@ export default function WardsPage() {
         <div className="text-center py-12">
           <Building2 className="h-12 w-12 text-gray-300 mx-auto mb-3" />
           <p className="text-gray-500">No wards configured</p>
-          <Button className="mt-4" size="sm" onClick={() => { setEditingWard(null); setFormData({ name: '', type: 'general', floor: 1 }); setShowForm(true) }}>
+          <Button className="mt-4" size="sm" onClick={() => { setEditingWard(null); setFormData({ name: '', type: 'general', floor: 1, noOfBeds: 0 }); setShowForm(true) }}>
             <Plus className="mr-2 h-4 w-4" /> Add Ward
           </Button>
         </div>

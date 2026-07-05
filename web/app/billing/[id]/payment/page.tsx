@@ -7,6 +7,8 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { ArrowLeft, CreditCard, Loader2, IndianRupee, CheckCircle } from 'lucide-react'
 import Link from 'next/link'
+import { useToast } from '@/components/ui/toast'
+import { useAuth } from '@/lib/auth-context'
 
 interface Invoice {
   id: string
@@ -33,6 +35,8 @@ const paymentMethods = [
 export default function PaymentPage() {
   const params = useParams()
   const router = useRouter()
+  const { toast } = useToast()
+  const { user, isLoading: authLoading } = useAuth()
   const [invoice, setInvoice] = useState<Invoice | null>(null)
   const [loading, setLoading] = useState(true)
   const [processing, setProcessing] = useState(false)
@@ -44,6 +48,14 @@ export default function PaymentPage() {
   const [transactionId, setTransactionId] = useState('')
 
   useEffect(() => { fetchInvoice() }, [params.id])
+
+  useEffect(() => {
+    if (authLoading) return
+    if (user?.role === 'super_admin') {
+      toast('You do not have permission to process payments', 'error')
+      router.push('/billing')
+    }
+  }, [authLoading, user, router, toast])
 
   const fetchInvoice = async () => {
     try {
@@ -78,6 +90,7 @@ export default function PaymentPage() {
     finally { setProcessing(false) }
   }
 
+  if (authLoading || user?.role === 'super_admin') return null
   if (loading) return <div className="flex items-center justify-center h-96"><Loader2 className="h-8 w-8 animate-spin text-gray-400" /></div>
   if (!invoice) return <div className="p-8 text-center text-red-500">Invoice not found</div>
 

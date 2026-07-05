@@ -8,19 +8,22 @@ import { Badge } from '@/components/ui/badge'
 import { ArrowLeft, Printer, Loader2, Building2 } from 'lucide-react'
 import Link from 'next/link'
 import { useToast } from '@/components/ui/toast'
+import { useAuth } from '@/lib/auth-context'
 
 interface Prescription {
   id: string
   createdAt: string
-  patient: { name: string; uhid: string; age: number | null; gender: string; mobile: string; address: string }
+  patient: { id: string; name: string; uhid: string; age: number | null; gender: string; mobile: string; address: string }
   doctor: { user: { name: string }; specialization: string; qualification: string }
-  medicines: { medicineName: string; dose: string; frequency: string; duration: string; instructions: string }[]
+  medicines: { medicineName: string; dose: string; frequency: string; duration: string; instructions: string; timing?: string | null; foodInstructions?: string | null; usageInstructions?: string | null }[]
   consultation?: { chiefComplaint: string; diagnosis: string; symptoms: string; clinicalNotes: string }
 }
 
 export default function PrescriptionPrintPage() {
   const params = useParams()
   const { toast } = useToast()
+  const { hasRole } = useAuth()
+  const isNurse = hasRole(['nurse'])
   const [prescription, setPrescription] = useState<Prescription | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -44,7 +47,7 @@ export default function PrescriptionPrintPage() {
     <div className="p-8">
       {/* Controls - hidden on print */}
       <div className="mb-6 no-print">
-        <Link href={`/patients/${prescription.patient?.uhid || ''}`}>
+        <Link href={`/patients/${prescription.patient?.id || ''}`}>
           <Button variant="ghost" className="mb-4">
             <ArrowLeft className="mr-2 h-4 w-4" /> Back
           </Button>
@@ -117,8 +120,18 @@ export default function PrescriptionPrintPage() {
                   <th className="text-left p-2">#</th>
                   <th className="text-left p-2">Medicine</th>
                   <th className="text-left p-2">Dose</th>
-                  <th className="text-left p-2">Frequency</th>
-                  <th className="text-left p-2">Duration</th>
+                  {isNurse ? (
+                    <>
+                      <th className="text-left p-2">Timing</th>
+                      <th className="text-left p-2">Food Instructions</th>
+                      <th className="text-left p-2">Usage Instructions</th>
+                    </>
+                  ) : (
+                    <>
+                      <th className="text-left p-2">Frequency</th>
+                      <th className="text-left p-2">Duration</th>
+                    </>
+                  )}
                 </tr>
               </thead>
               <tbody>
@@ -127,8 +140,18 @@ export default function PrescriptionPrintPage() {
                     <td className="p-2">{i + 1}</td>
                     <td className="p-2 font-medium">{m.medicineName}</td>
                     <td className="p-2">{m.dose}</td>
-                    <td className="p-2">{m.frequency}</td>
-                    <td className="p-2">{m.duration}</td>
+                    {isNurse ? (
+                      <>
+                        <td className="p-2">{m.timing || '-'}</td>
+                        <td className="p-2">{m.foodInstructions || '-'}</td>
+                        <td className="p-2">{m.usageInstructions || '-'}</td>
+                      </>
+                    ) : (
+                      <>
+                        <td className="p-2">{m.frequency}</td>
+                        <td className="p-2">{m.duration}</td>
+                      </>
+                    )}
                   </tr>
                 ))}
               </tbody>

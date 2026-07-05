@@ -22,9 +22,10 @@ interface PrescriptionFormProps {
   onSave: (medicines: Medicine[]) => void
   onCancel: () => void
   medicineOptions?: MedicineOption[]
+  readOnly?: boolean
 }
 
-export function PrescriptionForm({ onSave, onCancel, medicineOptions = [] }: PrescriptionFormProps) {
+export function PrescriptionForm({ onSave, onCancel, medicineOptions = [], readOnly = false }: PrescriptionFormProps) {
   const [medicines, setMedicines] = useState<Medicine[]>([])
   const [currentMedicine, setCurrentMedicine] = useState({
     name: '',
@@ -94,6 +95,7 @@ export function PrescriptionForm({ onSave, onCancel, medicineOptions = [] }: Pre
                 }
                 placeholder="e.g., Paracetamol"
                 list={medicineOptions.length > 0 ? 'medicine-master-options' : undefined}
+                disabled={readOnly}
               />
               {medicineOptions.length > 0 && (
                 <datalist id="medicine-master-options">
@@ -114,6 +116,7 @@ export function PrescriptionForm({ onSave, onCancel, medicineOptions = [] }: Pre
                   setCurrentMedicine({ ...currentMedicine, dose: e.target.value })
                 }
                 placeholder="e.g., 500mg"
+                disabled={readOnly}
               />
             </div>
           </div>
@@ -130,9 +133,10 @@ export function PrescriptionForm({ onSave, onCancel, medicineOptions = [] }: Pre
               rows={2}
               className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               placeholder="e.g., Take after food"
+              disabled={readOnly}
             />
           </div>
-          <Button onClick={addMedicine} className="w-full">
+          <Button onClick={addMedicine} className="w-full" disabled={readOnly}>
             <Plus className="mr-2 h-4 w-4" />
             Add to Prescription
           </Button>
@@ -146,7 +150,8 @@ export function PrescriptionForm({ onSave, onCancel, medicineOptions = [] }: Pre
                     key={m.id}
                     type="button"
                     onClick={() => quickAddMedicine(m.name)}
-                    className="px-3 py-1.5 text-xs rounded-full border bg-white hover:bg-blue-50 hover:border-blue-300 text-gray-700 transition-colors"
+                    disabled={readOnly}
+                    className="px-3 py-1.5 text-xs rounded-full border bg-white hover:bg-blue-50 hover:border-blue-300 text-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {m.name}
                   </button>
@@ -178,6 +183,7 @@ export function PrescriptionForm({ onSave, onCancel, medicineOptions = [] }: Pre
                         onChange={(e) => updateMedicineDose(medicine.id, e.target.value)}
                         placeholder="Dose, e.g. 500mg"
                         className="h-7 w-36 text-xs"
+                        disabled={readOnly}
                       />
                     </div>
                     <div className="text-sm text-gray-600 space-y-1">
@@ -188,6 +194,7 @@ export function PrescriptionForm({ onSave, onCancel, medicineOptions = [] }: Pre
                     variant="ghost"
                     size="icon"
                     onClick={() => removeMedicine(medicine.id)}
+                    disabled={readOnly}
                   >
                     <Trash2 className="h-4 w-4 text-red-600" />
                   </Button>
@@ -203,7 +210,7 @@ export function PrescriptionForm({ onSave, onCancel, medicineOptions = [] }: Pre
         <Button variant="outline" onClick={onCancel}>
           Cancel
         </Button>
-        <Button onClick={handleSave} disabled={medicines.length === 0}>
+        <Button onClick={handleSave} disabled={readOnly || medicines.length === 0}>
           Save Prescription
         </Button>
       </div>

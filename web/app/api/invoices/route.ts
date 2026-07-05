@@ -5,7 +5,7 @@ import { handleApiError } from "@/lib/error-handler"
 import type { InvoiceWhereInput } from "@/lib/types"
 import { getToken } from "next-auth/jwt"
 
-const billingRoles = ["super_admin", "hospital_admin", "billing_staff"]
+const billingRoles = ["super_admin", "hospital_admin", "billing_staff", "nurse"]
 
 export async function GET(request: NextRequest) {
   try {

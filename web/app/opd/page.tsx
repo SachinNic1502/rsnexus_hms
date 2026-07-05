@@ -1,12 +1,14 @@
 "use client"
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Stethoscope, Clock, User, ClipboardCheck, Loader2, Receipt, Users } from 'lucide-react'
 import Link from 'next/link'
 import { useToast } from '@/components/ui/toast'
+import { useAuth } from '@/lib/auth-context'
 
 interface Appointment {
   id: string
@@ -32,6 +34,10 @@ const getStatusColor = (status: string) => {
 
 export default function OPDPage() {
   const { toast } = useToast()
+  const router = useRouter()
+  const { user } = useAuth()
+  const canConsult = user?.role !== 'super_admin'
+  const canInitiateConsult = canConsult && user?.role !== 'nurse'
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -72,7 +78,11 @@ export default function OPDPage() {
       ) : (
         <div className="space-y-4">
           {appointments.map((apt) => (
-            <Card key={apt.id} className="hover:shadow-md transition-shadow">
+            <Card
+              key={apt.id}
+              className="hover:shadow-md transition-shadow cursor-pointer"
+              onClick={() => router.push(`/patients/${apt.patient.id}`)}
+            >
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
@@ -92,17 +102,17 @@ export default function OPDPage() {
                       </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3" onClick={(e) => e.stopPropagation()}>
                     <Badge variant={getStatusColor(apt.status) as "default" | "secondary" | "destructive" | "outline" | "success" | "warning"}>{apt.status.replace('_', ' ')}</Badge>
                     {apt.status === 'scheduled' && (
                       <Button size="sm" onClick={() => updateStatus(apt.id, 'waiting')}>Check In</Button>
                     )}
-                    {apt.status === 'waiting' && (
+                    {apt.status === 'waiting' && canInitiateConsult && (
                       <Link href={`/opd/consultation/${apt.id}`}>
                         <Button size="sm"><ClipboardCheck className="mr-1 h-3 w-3" /> Consult</Button>
                       </Link>
                     )}
-                    {apt.status === 'in_progress' && (
+                    {apt.status === 'in_progress' && canConsult && (
                       <Link href={`/opd/consultation/${apt.id}`}>
                         <Button size="sm" variant="outline">Continue</Button>
                       </Link>

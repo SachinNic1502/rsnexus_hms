@@ -7,7 +7,7 @@ import { Sidebar } from '@/components/sidebar'
 import { useToast } from '@/components/ui/toast'
 import { UserRole } from '@/types'
 
-const allowedRoles: UserRole[] = ['super_admin', 'hospital_admin', 'billing_staff', 'receptionist']
+const allowedRoles: UserRole[] = ['super_admin', 'hospital_admin', 'billing_staff', 'receptionist', 'nurse']
 
 export default function BillingLayout({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, hasRole, isLoading } = useAuth()

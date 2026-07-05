@@ -9,11 +9,14 @@ import { ArrowLeft, Loader2, Thermometer, Activity, Heart, Weight, Ruler } from 
 import Link from 'next/link'
 import { useToast } from '@/components/ui/toast'
 import { PrescriptionForm } from '@/components/prescription-form'
+import { useAuth } from '@/lib/auth-context'
 
 export default function ConsultationPage() {
   const params = useParams()
   const router = useRouter()
   const { toast } = useToast()
+  const { user, isLoading: authLoading } = useAuth()
+  const isReadOnly = user?.role === 'nurse'
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -24,6 +27,14 @@ export default function ConsultationPage() {
   const [formData, setFormData] = useState({ chiefComplaint: '', symptoms: '', diagnosis: '', clinicalNotes: '' })
 
   useEffect(() => { fetchAppointment(); fetchMedicines() }, [params.id])
+
+  useEffect(() => {
+    if (authLoading) return
+    if (user?.role === 'super_admin') {
+      toast('You do not have permission to access consultations', 'error')
+      router.push('/opd')
+    }
+  }, [authLoading, user, router, toast])
 
   const apt = appointment as Record<string, unknown> | null
 
@@ -45,7 +56,7 @@ export default function ConsultationPage() {
         })
       }
 
-      if (a.status !== 'in_progress') {
+      if (a.status !== 'in_progress' && user?.role !== 'nurse') {
         await fetch(`/api/appointments/${params.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
@@ -145,6 +156,7 @@ export default function ConsultationPage() {
     }
   }
 
+  if (authLoading || user?.role === 'super_admin') return null
   if (loading) return <div className="flex items-center justify-center h-96"><Loader2 className="h-8 w-8 animate-spin text-gray-400" /></div>
   if (error && !appointment) return <div className="p-8 text-center text-red-500">{error}</div>
   if (!appointment) return <div className="p-8 text-center">Appointment not found</div>
@@ -214,17 +226,17 @@ export default function ConsultationPage() {
         <Card>
           <CardHeader><CardTitle>Clinical Assessment</CardTitle></CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-1"><label className="text-sm font-medium">Chief Complaint *</label><textarea className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm" rows={2} value={formData.chiefComplaint} onChange={e => setFormData({ ...formData, chiefComplaint: e.target.value })} placeholder="Primary reason for visit" /></div>
-            <div className="space-y-1"><label className="text-sm font-medium">Symptoms</label><textarea className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm" rows={2} value={formData.symptoms} onChange={e => setFormData({ ...formData, symptoms: e.target.value })} placeholder="List of symptoms" /></div>
-            <div className="space-y-1"><label className="text-sm font-medium">Diagnosis *</label><textarea className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm" rows={2} value={formData.diagnosis} onChange={e => setFormData({ ...formData, diagnosis: e.target.value })} placeholder="Diagnosis" /></div>
-            <div className="space-y-1"><label className="text-sm font-medium">Clinical Notes</label><textarea className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm" rows={3} value={formData.clinicalNotes} onChange={e => setFormData({ ...formData, clinicalNotes: e.target.value })} placeholder="Additional notes" /></div>
+            <div className="space-y-1"><label className="text-sm font-medium">Chief Complaint *</label><textarea readOnly={isReadOnly} className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm" rows={2} value={formData.chiefComplaint} onChange={e => setFormData({ ...formData, chiefComplaint: e.target.value })} placeholder="Primary reason for visit" /></div>
+            <div className="space-y-1"><label className="text-sm font-medium">Symptoms</label><textarea readOnly={isReadOnly} className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm" rows={2} value={formData.symptoms} onChange={e => setFormData({ ...formData, symptoms: e.target.value })} placeholder="List of symptoms" /></div>
+            <div className="space-y-1"><label className="text-sm font-medium">Diagnosis *</label><textarea readOnly={isReadOnly} className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm" rows={2} value={formData.diagnosis} onChange={e => setFormData({ ...formData, diagnosis: e.target.value })} placeholder="Diagnosis" /></div>
+            <div className="space-y-1"><label className="text-sm font-medium">Clinical Notes</label><textarea readOnly={isReadOnly} className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm" rows={3} value={formData.clinicalNotes} onChange={e => setFormData({ ...formData, clinicalNotes: e.target.value })} placeholder="Additional notes" /></div>
           </CardContent>
         </Card>
       </div>
 
       {/* Prescription */}
       <div className="mt-6">
-        <PrescriptionForm onSave={handleSavePrescription} onCancel={() => router.push(`/patients/${patient.id as string}`)} medicineOptions={medicineOptions} />
+        <PrescriptionForm onSave={handleSavePrescription} onCancel={() => router.push(`/patients/${patient.id as string}`)} medicineOptions={medicineOptions} readOnly={isReadOnly} />
       </div>
     </div>
   )

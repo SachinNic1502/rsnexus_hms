@@ -4,45 +4,34 @@ import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { Plus, Trash2, Pill } from 'lucide-react'
 
 interface Medicine {
   id: string
   name: string
   dose: string
-  frequency: string
-  duration: string
   instructions: string
+}
+
+interface MedicineOption {
+  id: string
+  name: string
 }
 
 interface PrescriptionFormProps {
   onSave: (medicines: Medicine[]) => void
   onCancel: () => void
+  medicineOptions?: MedicineOption[]
+  readOnly?: boolean
 }
 
-export function PrescriptionForm({ onSave, onCancel }: PrescriptionFormProps) {
+export function PrescriptionForm({ onSave, onCancel, medicineOptions = [], readOnly = false }: PrescriptionFormProps) {
   const [medicines, setMedicines] = useState<Medicine[]>([])
   const [currentMedicine, setCurrentMedicine] = useState({
     name: '',
     dose: '',
-    frequency: '',
-    duration: '',
     instructions: '',
   })
-
-  const frequencies = [
-    'Once daily',
-    'Twice daily',
-    'Three times daily',
-    'Four times daily',
-    'Every 8 hours',
-    'Every 12 hours',
-    'Every 6 hours',
-    'As needed',
-    'Before meals',
-    'After meals',
-  ]
 
   const addMedicine = () => {
     if (!currentMedicine.name || !currentMedicine.dose) {
@@ -59,14 +48,20 @@ export function PrescriptionForm({ onSave, onCancel }: PrescriptionFormProps) {
     setCurrentMedicine({
       name: '',
       dose: '',
-      frequency: '',
-      duration: '',
       instructions: '',
     })
   }
 
+  const quickAddMedicine = (name: string) => {
+    setMedicines(prev => [...prev, { id: `${Date.now()}-${name}`, name, dose: '', instructions: '' }])
+  }
+
   const removeMedicine = (id: string) => {
     setMedicines(medicines.filter((m) => m.id !== id))
+  }
+
+  const updateMedicineDose = (id: string, dose: string) => {
+    setMedicines(medicines.map((m) => (m.id === id ? { ...m, dose } : m)))
   }
 
   const handleSave = () => {
@@ -99,7 +94,16 @@ export function PrescriptionForm({ onSave, onCancel }: PrescriptionFormProps) {
                   setCurrentMedicine({ ...currentMedicine, name: e.target.value })
                 }
                 placeholder="e.g., Paracetamol"
+                list={medicineOptions.length > 0 ? 'medicine-master-options' : undefined}
+                disabled={readOnly}
               />
+              {medicineOptions.length > 0 && (
+                <datalist id="medicine-master-options">
+                  {medicineOptions.map((m) => (
+                    <option key={m.id} value={m.name} />
+                  ))}
+                </datalist>
+              )}
             </div>
             <div className="space-y-2">
               <label htmlFor="dose" className="text-sm font-medium">
@@ -112,39 +116,7 @@ export function PrescriptionForm({ onSave, onCancel }: PrescriptionFormProps) {
                   setCurrentMedicine({ ...currentMedicine, dose: e.target.value })
                 }
                 placeholder="e.g., 500mg"
-              />
-            </div>
-            <div className="space-y-2">
-              <label htmlFor="frequency" className="text-sm font-medium">
-                Frequency
-              </label>
-              <select
-                id="frequency"
-                value={currentMedicine.frequency}
-                onChange={(e) =>
-                  setCurrentMedicine({ ...currentMedicine, frequency: e.target.value })
-                }
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                <option value="">Select frequency</option>
-                {frequencies.map((freq) => (
-                  <option key={freq} value={freq}>
-                    {freq}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="space-y-2">
-              <label htmlFor="duration" className="text-sm font-medium">
-                Duration
-              </label>
-              <Input
-                id="duration"
-                value={currentMedicine.duration}
-                onChange={(e) =>
-                  setCurrentMedicine({ ...currentMedicine, duration: e.target.value })
-                }
-                placeholder="e.g., 5 days"
+                disabled={readOnly}
               />
             </div>
           </div>
@@ -161,12 +133,32 @@ export function PrescriptionForm({ onSave, onCancel }: PrescriptionFormProps) {
               rows={2}
               className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               placeholder="e.g., Take after food"
+              disabled={readOnly}
             />
           </div>
-          <Button onClick={addMedicine} className="w-full">
+          <Button onClick={addMedicine} className="w-full" disabled={readOnly}>
             <Plus className="mr-2 h-4 w-4" />
             Add to Prescription
           </Button>
+
+          {medicineOptions.length > 0 && (
+            <div className="space-y-2 pt-2 border-t">
+              <p className="text-sm font-medium">Or pick from existing medicines</p>
+              <div className="max-h-40 overflow-auto flex flex-wrap gap-2">
+                {medicineOptions.map((m) => (
+                  <button
+                    key={m.id}
+                    type="button"
+                    onClick={() => quickAddMedicine(m.name)}
+                    disabled={readOnly}
+                    className="px-3 py-1.5 text-xs rounded-full border bg-white hover:bg-blue-50 hover:border-blue-300 text-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {m.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -186,11 +178,15 @@ export function PrescriptionForm({ onSave, onCancel }: PrescriptionFormProps) {
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-2">
                       <h4 className="font-semibold">{medicine.name}</h4>
-                      <Badge variant="outline">{medicine.dose}</Badge>
+                      <Input
+                        value={medicine.dose}
+                        onChange={(e) => updateMedicineDose(medicine.id, e.target.value)}
+                        placeholder="Dose, e.g. 500mg"
+                        className="h-7 w-36 text-xs"
+                        disabled={readOnly}
+                      />
                     </div>
                     <div className="text-sm text-gray-600 space-y-1">
-                      {medicine.frequency && <p>Frequency: {medicine.frequency}</p>}
-                      {medicine.duration && <p>Duration: {medicine.duration}</p>}
                       {medicine.instructions && <p>Note: {medicine.instructions}</p>}
                     </div>
                   </div>
@@ -198,6 +194,7 @@ export function PrescriptionForm({ onSave, onCancel }: PrescriptionFormProps) {
                     variant="ghost"
                     size="icon"
                     onClick={() => removeMedicine(medicine.id)}
+                    disabled={readOnly}
                   >
                     <Trash2 className="h-4 w-4 text-red-600" />
                   </Button>
@@ -213,7 +210,7 @@ export function PrescriptionForm({ onSave, onCancel }: PrescriptionFormProps) {
         <Button variant="outline" onClick={onCancel}>
           Cancel
         </Button>
-        <Button onClick={handleSave} disabled={medicines.length === 0}>
+        <Button onClick={handleSave} disabled={readOnly || medicines.length === 0}>
           Save Prescription
         </Button>
       </div>

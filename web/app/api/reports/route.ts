@@ -35,7 +35,7 @@ async function dailyReport(dateStr: string) {
 
   const [appointments, admissions, discharges, invoices, labOrders] = await Promise.all([
     prisma.appointment.findMany({
-      where: { date: { gte: date, lt: nextDay } },
+      where: { date: { gte: date, lt: nextDay }, isDeleted: { isSet: false } },
       include: { patient: true, doctor: { include: { user: true } }, department: true },
     }),
     prisma.admission.findMany({
@@ -116,7 +116,7 @@ async function monthlyReport(month: string) {
 
   const [appointments, admissions, discharges, invoices, labOrders, patients] = await Promise.all([
     prisma.appointment.findMany({
-      where: { date: { gte: startDate, lt: endDate } },
+      where: { date: { gte: startDate, lt: endDate }, isDeleted: { isSet: false } },
       include: { doctor: { include: { user: true } }, department: true },
     }),
     prisma.admission.findMany({
@@ -134,7 +134,7 @@ async function monthlyReport(month: string) {
       where: { orderedAt: { gte: startDate, lt: endDate } },
     }),
     prisma.patient.findMany({
-      where: { createdAt: { gte: startDate, lt: endDate } },
+      where: { createdAt: { gte: startDate, lt: endDate }, isDeleted: { isSet: false } },
     }),
   ])
 
@@ -262,6 +262,7 @@ async function doctorPerformanceReport(month: string, doctorId?: string | null) 
 
   const where: any = {
     createdAt: { gte: startDate, lt: endDate },
+    isDeleted: { isSet: false },
   }
   if (doctorId) where.doctorId = doctorId
 
@@ -343,10 +344,13 @@ async function doctorPerformanceReport(month: string, doctorId?: string | null) 
 async function bedOccupancyReport() {
   const [wards, totalBeds, occupiedBeds, admittedPatients, recentDischarges] = await Promise.all([
     prisma.ward.findMany({
+      where: { isDeleted: { isSet: false } },
       include: {
         rooms: {
+          where: { isDeleted: { isSet: false } },
           include: {
             beds: {
+              where: { isDeleted: { isSet: false } },
               include: {
                 admission: {
                   include: { patient: true, doctor: { include: { user: true } } },
@@ -357,8 +361,8 @@ async function bedOccupancyReport() {
         },
       },
     }),
-    prisma.bed.count({ where: { status: { not: "maintenance" } } }),
-    prisma.bed.count({ where: { status: "occupied" } }),
+    prisma.bed.count({ where: { status: { not: "maintenance" }, isDeleted: { isSet: false } } }),
+    prisma.bed.count({ where: { status: "occupied", isDeleted: { isSet: false } } }),
     prisma.admission.findMany({
       where: { status: "admitted" },
       include: {

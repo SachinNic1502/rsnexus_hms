@@ -7,15 +7,23 @@ const adminOnlyRoutes = [
   "/api/users",
   "/api/wards",
   "/api/beds",
-  "/api/medicines",
   "/api/lab-tests",
   "/api/rooms",
 ]
 
 const doctorOnlyRoutes = [
-  "/api/consultations",
-  "/api/prescriptions",
   "/api/daily-rounds",
+]
+
+const prescriptionRoutes = [
+  "/api/prescriptions",
+]
+
+// Consultations are also created as a best-effort side effect of Patient
+// Registration (to capture vitals), so every role that can register a
+// patient needs access here too, not just doctors.
+const consultationRoutes = [
+  "/api/consultations",
 ]
 
 const nurseRoutes = [
@@ -41,6 +49,12 @@ function getRouteRole(pathname: string): string | null {
   for (const route of doctorOnlyRoutes) {
     if (pathname.startsWith(route)) return "doctor"
   }
+  for (const route of prescriptionRoutes) {
+    if (pathname.startsWith(route)) return "prescription"
+  }
+  for (const route of consultationRoutes) {
+    if (pathname.startsWith(route)) return "consultation"
+  }
   for (const route of nurseRoutes) {
     if (pathname.startsWith(route)) return "nurse"
   }
@@ -57,11 +71,13 @@ function getRouteRole(pathname: string): string | null {
 }
 
 const adminRoles = ["super_admin", "hospital_admin"]
-const doctorRoles = ["doctor"]
+const doctorRoles = ["doctor", "receptionist"]
+const prescriptionRoles = ["doctor", "receptionist", "nurse"]
+const consultationRoles = ["doctor", "receptionist", "super_admin", "hospital_admin", "nurse"]
 const nurseRoles = ["super_admin", "hospital_admin", "nurse"]
 const labRoles = ["super_admin", "hospital_admin", "doctor", "lab_technician"]
-const billingRoles = ["super_admin", "hospital_admin", "billing_staff"]
-const reportsRoles = ["super_admin", "hospital_admin"]
+const billingRoles = ["super_admin", "hospital_admin", "billing_staff", "receptionist", "nurse"]
+const reportsRoles = ["super_admin", "hospital_admin", "receptionist"]
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
@@ -94,6 +110,8 @@ export async function middleware(request: NextRequest) {
       let allowed = false
       if (requiredRole === "admin") allowed = adminRoles.includes(userRole)
       else if (requiredRole === "doctor") allowed = doctorRoles.includes(userRole)
+      else if (requiredRole === "prescription") allowed = prescriptionRoles.includes(userRole)
+      else if (requiredRole === "consultation") allowed = consultationRoles.includes(userRole)
       else if (requiredRole === "nurse") allowed = nurseRoles.includes(userRole)
       else if (requiredRole === "lab") allowed = labRoles.includes(userRole)
       else if (requiredRole === "billing") allowed = billingRoles.includes(userRole)

@@ -67,12 +67,12 @@ export default function PatientsPage() {
           <h1 className="text-3xl font-bold text-gray-900">Patients</h1>
           <p className="text-gray-600 mt-1">Manage patient records and registrations</p>
         </div>
-        <Link href="/patients/new">
+        {/* <Link href="/patients/register">
           <Button>
             <Plus className="mr-2 h-4 w-4" />
             New Patient
           </Button>
-        </Link>
+        </Link> */}
       </div>
 
       {/* Search Section */}
@@ -125,7 +125,7 @@ export default function PatientsPage() {
             <div className="text-center py-12">
               <Users className="h-12 w-12 text-gray-300 mx-auto mb-3" />
               <p className="text-gray-500">No patients found</p>
-              <Link href="/patients/new">
+              <Link href="/patients/register">
                 <Button className="mt-4" size="sm">Register Patient</Button>
               </Link>
             </div>

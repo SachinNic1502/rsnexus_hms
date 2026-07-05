@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { ArrowLeft, DollarSign, Loader2, AlertCircle, CheckCircle } from 'lucide-react'
 import Link from 'next/link'
 import { useToast } from '@/components/ui/toast'
+import { useAuth } from '@/lib/auth-context'
 
 interface Invoice {
   id: string
@@ -21,6 +22,8 @@ interface Invoice {
 
 export default function PendingPaymentsPage() {
   const { toast } = useToast()
+  const { user } = useAuth()
+  const canManageBilling = user?.role !== 'super_admin'
   const [invoices, setInvoices] = useState<Invoice[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -110,9 +113,11 @@ export default function PendingPaymentsPage() {
                     <div className="text-right">
                       <p className="text-2xl font-bold text-red-600">₹{remaining.toLocaleString()}</p>
                       <p className="text-xs text-gray-500 mb-2">Outstanding</p>
-                      <Link href={`/billing/${inv.id}/payment`}>
-                        <Button size="sm">Pay Now</Button>
-                      </Link>
+                      {canManageBilling && (
+                        <Link href={`/billing/${inv.id}/payment`}>
+                          <Button size="sm">Pay Now</Button>
+                        </Link>
+                      )}
                     </div>
                   </div>
                 </CardContent>

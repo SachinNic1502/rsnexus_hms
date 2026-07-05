@@ -24,25 +24,31 @@ import {
   X,
 } from 'lucide-react'
 
+const nonReceptionistRoles: UserRole[] = ['super_admin', 'hospital_admin', 'doctor', 'nurse', 'lab_technician', 'pharmacist', 'billing_staff']
+
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, roles: undefined as UserRole[] | undefined },
+  { name: 'Patient Registration', href: '/patients/register', icon: Calendar, roles: ['hospital_admin', 'receptionist', 'nurse'] as UserRole[] },
   { name: 'Patients', href: '/patients', icon: Users, roles: undefined as UserRole[] | undefined },
   { name: 'Appointments', href: '/appointments', icon: Calendar, roles: undefined as UserRole[] | undefined },
-  { name: 'OPD', href: '/opd', icon: Stethoscope, roles: undefined as UserRole[] | undefined },
-  { name: 'IPD', href: '/ipd', icon: BedDouble, roles: undefined as UserRole[] | undefined },
+  { name: 'OPD', href: '/opd', icon: Stethoscope, roles: nonReceptionistRoles },
+  { name: 'IPD', href: '/ipd', icon: BedDouble, roles: ['hospital_admin', 'lab_technician', 'pharmacist', 'billing_staff'] as UserRole[] },
   { name: 'Wards', href: '/wards', icon: BedDouble, roles: ['super_admin', 'hospital_admin', 'nurse'] as UserRole[] },
-  { name: 'Lab', href: '/lab', icon: FlaskConical, roles: ['super_admin', 'hospital_admin', 'doctor', 'lab_technician'] as UserRole[] },
-  { name: 'Billing', href: '/billing', icon: DollarSign, roles: ['super_admin', 'hospital_admin', 'billing_staff'] as UserRole[] },
+  { name: 'Lab', href: '/lab', icon: FlaskConical, roles: ['hospital_admin', 'lab_technician'] as UserRole[] },
+  { name: 'Billing', href: '/billing', icon: DollarSign, roles: ['super_admin', 'hospital_admin', 'billing_staff', 'receptionist', 'nurse'] as UserRole[] },
   { name: 'Medicines', href: '/medicines', icon: Pill, roles: ['super_admin', 'hospital_admin', 'pharmacist'] as UserRole[] },
   { name: 'Services', href: '/services', icon: ClipboardList, roles: ['super_admin', 'hospital_admin'] as UserRole[] },
-  { name: 'Reports', href: '/reports', icon: BarChart3, roles: ['super_admin', 'hospital_admin'] as UserRole[] },
+  { name: 'Reports', href: '/reports', icon: BarChart3, roles: ['super_admin', 'hospital_admin', 'receptionist'] as UserRole[] },
   { name: 'Settings', href: '/settings', icon: Settings, roles: ['super_admin', 'hospital_admin'] as UserRole[] },
 ]
 
 function SidebarContent({ onLinkClick }: { onLinkClick?: () => void }) {
   const pathname = usePathname()
   const { user, logout, hasRole } = useAuth()
-  const visibleNav = navigation.filter(item => !item.roles || hasRole(item.roles))
+  const filteredNav = navigation.filter(item => !item.roles || hasRole(item.roles))
+  const visibleNav = user?.role === 'nurse'
+    ? [...filteredNav].sort((a, b) => a.name.localeCompare(b.name))
+    : filteredNav
 
   return (
     <div className="flex h-full flex-col bg-slate-900 text-white">

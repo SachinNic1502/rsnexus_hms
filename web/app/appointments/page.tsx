@@ -1,12 +1,14 @@
 "use client"
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Plus, Calendar, Clock, User, Stethoscope, Loader2, CalendarX, Edit } from 'lucide-react'
 import Link from 'next/link'
 import { useToast } from '@/components/ui/toast'
+import { useAuth } from '@/lib/auth-context'
 
 interface Appointment {
   id: string
@@ -17,6 +19,7 @@ interface Appointment {
   consultationType: string
   status: string
   patient: {
+    id: string
     name: string
     uhid: string
   }
@@ -49,6 +52,9 @@ const getStatusColor = (status: string) => {
 
 export default function AppointmentsPage() {
   const { toast } = useToast()
+  const router = useRouter()
+  const { user } = useAuth()
+  const canBookAppointment = user?.role !== 'doctor'
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [loading, setLoading] = useState(true)
   const [filterStatus, setFilterStatus] = useState<string>('all')
@@ -83,12 +89,14 @@ export default function AppointmentsPage() {
           <h1 className="text-3xl font-bold text-gray-900">Appointments</h1>
           <p className="text-gray-600 mt-1">Manage patient appointments and schedules</p>
         </div>
-        <Link href="/appointments/new">
-          <Button>
-            <Plus className="mr-2 h-4 w-4" />
-            Book Appointment
-          </Button>
-        </Link>
+        {canBookAppointment && (
+          <Link href="/patients/register">
+            <Button>
+              <Plus className="mr-2 h-4 w-4" />
+              Book Appointment
+            </Button>
+          </Link>
+        )}
       </div>
 
       {/* Filter Tabs */}
@@ -115,13 +123,19 @@ export default function AppointmentsPage() {
             <div className="text-center py-12">
               <CalendarX className="h-12 w-12 text-gray-300 mx-auto mb-3" />
               <p className="text-gray-500">No appointments found</p>
-              <Link href="/appointments/new">
-                <Button className="mt-4" size="sm">Book Appointment</Button>
-              </Link>
+              {canBookAppointment && (
+                <Link href="/patients/register">
+                  <Button className="mt-4" size="sm">Book Appointment</Button>
+                </Link>
+              )}
             </div>
           ) : (
             appointments.map((appointment) => (
-              <Card key={appointment.id} className="hover:shadow-md transition-shadow">
+              <Card
+                key={appointment.id}
+                className="hover:shadow-md transition-shadow cursor-pointer"
+                onClick={() => router.push(`/patients/${appointment.patient.id}`)}
+              >
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
@@ -157,11 +171,13 @@ export default function AppointmentsPage() {
                         {appointment.status.replace('_', ' ')}
                       </Badge>
                       {(appointment.status === 'scheduled' || appointment.status === 'waiting') && (
-                        <Link href={`/appointments/${appointment.id}/edit`}>
-                          <Button variant="ghost" size="sm" className="mt-2">
-                            <Edit className="mr-1 h-3 w-3" /> Edit
-                          </Button>
-                        </Link>
+                        <div onClick={(e) => e.stopPropagation()}>
+                          <Link href={`/appointments/${appointment.id}/edit`}>
+                            <Button variant="ghost" size="sm" className="mt-2">
+                              <Edit className="mr-1 h-3 w-3" /> Edit
+                            </Button>
+                          </Link>
+                        </div>
                       )}
                     </div>
                   </div>

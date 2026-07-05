@@ -6,15 +6,18 @@ const wardSchema = z.object({
   name: z.string().min(1, "Name is required"),
   type: z.enum(["general", "icu", "emergency", "private"]).default("general"),
   floor: z.number().int().min(1).max(50).default(1),
+  noOfBeds: z.number().int().min(0, "No. of beds must be positive").max(500).default(0),
 })
 
 export async function GET() {
   try {
     const wards = await prisma.ward.findMany({
+      where: { isDeleted: { isSet: false } },
       include: {
         rooms: {
+          where: { isDeleted: { isSet: false } },
           include: {
-            beds: true,
+            beds: { where: { isDeleted: { isSet: false } } },
           },
         },
       },

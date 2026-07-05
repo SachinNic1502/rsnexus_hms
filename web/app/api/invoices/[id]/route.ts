@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getToken } from "next-auth/jwt"
 
-const billingRoles = ["super_admin", "hospital_admin", "billing_staff"]
+const billingRoles = ["super_admin", "hospital_admin", "billing_staff", "nurse"]
 
 export async function GET(
   request: NextRequest,

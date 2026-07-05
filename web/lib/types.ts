@@ -3,6 +3,7 @@ export interface PatientWhereInput {
   uhid?: string | { contains?: string; mode?: 'insensitive' | 'default' }
   mobile?: string | { contains?: string }
   name?: string | { contains?: string; mode?: 'insensitive' | 'default' }
+  isDeleted?: { not?: boolean; isSet?: boolean } | boolean
 }
 
 export interface AppointmentWhereInput {
@@ -10,6 +11,7 @@ export interface AppointmentWhereInput {
   date?: Date | { gte?: Date; lt?: Date; lte?: Date }
   doctorId?: string
   patientId?: string
+  isDeleted?: { not?: boolean; isSet?: boolean } | boolean
 }
 
 export interface InvoiceWhereInput {

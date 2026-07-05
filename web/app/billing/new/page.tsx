@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { ArrowLeft, Save, Loader2, Plus, Trash2 } from 'lucide-react'
 import Link from 'next/link'
 import { useToast } from '@/components/ui/toast'
+import { useAuth } from '@/lib/auth-context'
 
 interface InvoiceItem {
   description: string
@@ -19,6 +20,7 @@ interface InvoiceItem {
 export default function NewInvoicePage() {
   const router = useRouter()
   const { toast } = useToast()
+  const { user, isLoading: authLoading } = useAuth()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [patientSearch, setPatientSearch] = useState('')
@@ -31,6 +33,14 @@ export default function NewInvoicePage() {
   const [discount, setDiscount] = useState(0)
 
   useEffect(() => { fetch('/api/services').then(r => r.json()).then(data => setServices(Array.isArray(data) ? data : [])).catch(() => setServices([])) }, [])
+
+  useEffect(() => {
+    if (authLoading) return
+    if (user?.role === 'super_admin') {
+      toast('You do not have permission to create invoices', 'error')
+      router.push('/billing')
+    }
+  }, [authLoading, user, router, toast])
 
   useEffect(() => {
     if (patientSearch.length >= 2) {
@@ -70,6 +80,8 @@ export default function NewInvoicePage() {
     } catch (err: any) { setError(err.message) }
     finally { setLoading(false) }
   }
+
+  if (authLoading || user?.role === 'super_admin') return null
 
   return (
     <div className="p-8">

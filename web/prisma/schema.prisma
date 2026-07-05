@@ -15,9 +15,13 @@ model User {
   name           String
   passwordHash   String
   role           UserRole  @default(receptionist)
+  staffType      String?
   isActive       Boolean   @default(true)
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
+  isDeleted      Boolean?
+  deletedAt      DateTime?
+  deletedBy      String?
 
   doctor         Doctor?
 }
@@ -49,6 +53,9 @@ model Patient {
   emergencyContactNumber String?
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
+  isDeleted             Boolean?
+  deletedAt             DateTime?
+  deletedBy             String?
 
   appointments          Appointment[]
   consultations         Consultation[]
@@ -124,6 +131,9 @@ model Appointment {
   tokenNumber       Int
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
+  isDeleted         Boolean?
+  deletedAt         DateTime?
+  deletedBy         String?
 
   patient           Patient           @relation(fields: [patientId], references: [id])
   doctor            Doctor            @relation(fields: [doctorId], references: [id])
@@ -186,6 +196,9 @@ model Medicine {
   price          Float
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+  isDeleted      Boolean?
+  deletedAt      DateTime?
+  deletedBy      String?
 
   prescriptionItems PrescriptionMedicine[]
 }
@@ -215,6 +228,9 @@ model PrescriptionMedicine {
   frequency       String
   duration        String
   instructions    String?
+  timing          String?
+  foodInstructions String?
+  usageInstructions String?
   createdAt       DateTime     @default(now())
 
   prescription    Prescription @relation(fields: [prescriptionId], references: [id])
@@ -287,8 +303,12 @@ model Ward {
   name      String   @unique
   type      WardType
   floor     Int
+  noOfBeds  Int?     @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  isDeleted Boolean?
+  deletedAt DateTime?
+  deletedBy String?
 
   rooms     Room[]
   admissions Admission[]
@@ -310,6 +330,9 @@ model Room {
   chargesPerDay Float
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+  isDeleted     Boolean?
+  deletedAt     DateTime?
+  deletedBy     String?
 
   ward          Ward     @relation(fields: [wardId], references: [id])
   beds          Bed[]
@@ -330,6 +353,9 @@ model Bed {
   currentPatientId  String?   @db.ObjectId
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
+  isDeleted         Boolean?
+  deletedAt         DateTime?
+  deletedBy         String?
 
   room              Room      @relation(fields: [roomId], references: [id])
   admission         Admission?
@@ -481,4 +507,7 @@ model Service {
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  isDeleted   Boolean?
+  deletedAt   DateTime?
+  deletedBy   String?
 }

@@ -15,6 +15,7 @@ const medicineSchema = z.object({
 export async function GET() {
   try {
     const medicines = await prisma.medicine.findMany({
+      where: { isDeleted: { isSet: false } },
       orderBy: { name: "asc" },
     })
     return NextResponse.json(medicines)

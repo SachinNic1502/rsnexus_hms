@@ -5,9 +5,11 @@ import { useParams } from 'next/navigation'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { ArrowLeft, Printer, Loader2, Building2 } from 'lucide-react'
+import { ArrowLeft, Printer, Loader2, Building2, Download } from 'lucide-react'
 import Link from 'next/link'
 import { useToast } from '@/components/ui/toast'
+import { jsPDF } from 'jspdf'
+import autoTable from 'jspdf-autotable'
 
 interface Prescription {
   id: string
@@ -37,11 +39,113 @@ export default function PrescriptionPrintPage() {
 
   const handlePrint = () => { window.print() }
 
+  const handleDownloadPDF = () => {
+    if (!prescription) return
+    const doc = new jsPDF()
+
+    // Title / Clinic Header
+    doc.setFont("Helvetica", "bold")
+    doc.setFontSize(18)
+    doc.text("Rs Nexus Hospital", 14, 20)
+    doc.setFont("Helvetica", "normal")
+    doc.setFontSize(9)
+    doc.text("123 Healthcare Boulevard, Tech City", 14, 25)
+    doc.text("Phone: +91 98765 43210 | Support: contact@rsnexus.com", 14, 29)
+
+    // Doctor Details (Right Side)
+    doc.setFont("Helvetica", "bold")
+    doc.setFontSize(10)
+    doc.text(`Dr. ${prescription.doctor.user.name}`, 140, 20)
+    doc.setFont("Helvetica", "normal")
+    doc.setFontSize(9)
+    doc.text(`${prescription.doctor.qualification}`, 140, 25)
+    doc.text(`${prescription.doctor.specialization}`, 140, 29)
+
+    doc.setDrawColor(200, 200, 200)
+    doc.line(14, 33, 196, 33)
+
+    // Patient Details Bar
+    doc.setFillColor(245, 247, 250)
+    doc.rect(14, 38, 182, 22, "F")
+    doc.setFont("Helvetica", "bold")
+    doc.setFontSize(9)
+    doc.text(`Patient Name: ${prescription.patient.name}`, 18, 44)
+    doc.text(`UHID: ${prescription.patient.uhid}`, 18, 50)
+    doc.text(`Age/Gender: ${prescription.patient.age || 'N/A'} / ${prescription.patient.gender}`, 110, 44)
+    doc.text(`Mobile: ${prescription.patient.mobile}`, 110, 50)
+    doc.text(`Date: ${new Date(prescription.createdAt).toLocaleDateString()}`, 110, 55)
+
+    let currentY = 68
+
+    // Clinical info (Chief complaint, diagnosis, etc)
+    if (prescription.consultation) {
+      doc.setFont("Helvetica", "bold")
+      doc.text("CLINICAL DIAGNOSIS", 14, currentY)
+      doc.setFont("Helvetica", "normal")
+      doc.text(`Chief Complaint: ${prescription.consultation.chiefComplaint || 'N/A'}`, 14, currentY + 6)
+      doc.text(`Diagnosis: ${prescription.consultation.diagnosis || 'N/A'}`, 14, currentY + 11)
+      currentY += 20
+    }
+
+    // Rx sign
+    doc.setFont("Helvetica", "bold")
+    doc.setFontSize(14)
+    doc.text("Rx (Prescribed Medicines)", 14, currentY)
+
+    const tableData = prescription.medicines.map((m: any, idx: number) => [
+      idx + 1,
+      m.medicineName,
+      m.dose,
+      m.frequency,
+      m.duration,
+      m.instructions
+    ])
+
+    autoTable(doc, {
+      startY: currentY + 4,
+      head: [["S.No", "Medicine Name", "Dosage", "Frequency", "Duration", "Instructions"]],
+      body: tableData,
+      theme: "striped",
+      headStyles: { fillColor: [59, 130, 246] }
+    })
+
+    let finalY = (doc as any).lastAutoTable.finalY + 15
+    doc.line(140, finalY, 190, finalY)
+    doc.setFont("Helvetica", "normal")
+    doc.setFontSize(9)
+    doc.text("Authorized Signature", 145, finalY + 5)
+
+    doc.save(`Prescription_${prescription.patient.uhid}.pdf`)
+  }
+
   if (loading) return <div className="flex items-center justify-center h-96"><Loader2 className="h-8 w-8 animate-spin text-gray-400" /></div>
   if (!prescription) return <div className="p-8 text-center text-red-500">Prescription not found</div>
 
   return (
     <div className="p-8">
+      <style>{`
+        @media print {
+          body * {
+            visibility: hidden;
+          }
+          .printable-prescription, .printable-prescription * {
+            visibility: visible;
+          }
+          .printable-prescription {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            box-shadow: none !important;
+            border: none !important;
+          }
+          .no-print, header, nav, aside, footer {
+            display: none !important;
+          }
+        }
+      `}</style>
       {/* Controls - hidden on print */}
       <div className="mb-6 no-print">
         <Link href={`/patients/${prescription.patient?.uhid || ''}`}>
@@ -51,14 +155,19 @@ export default function PrescriptionPrintPage() {
         </Link>
         <div className="flex items-center justify-between">
           <h1 className="text-3xl font-bold text-gray-900">Prescription Preview</h1>
-          <Button onClick={handlePrint}>
-            <Printer className="mr-2 h-4 w-4" /> Print Prescription
-          </Button>
+          <div className="flex items-center gap-3">
+            <Button onClick={handleDownloadPDF} variant="outline" className="border-blue-600 text-blue-600 hover:bg-blue-50">
+              <Download className="mr-2 h-4 w-4" /> Download PDF
+            </Button>
+            <Button onClick={handlePrint}>
+              <Printer className="mr-2 h-4 w-4" /> Print Prescription
+            </Button>
+          </div>
         </div>
       </div>
 
       {/* Printable Prescription */}
-      <Card className="max-w-3xl mx-auto print:shadow-none print:border-2 print:border-black">
+      <Card className="printable-prescription max-w-3xl mx-auto print:shadow-none print:border-2 print:border-black">
         <CardContent className="p-8">
           {/* Header */}
           <div className="text-center border-b-2 border-black pb-4 mb-6">

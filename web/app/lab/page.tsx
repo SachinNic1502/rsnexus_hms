@@ -86,10 +86,15 @@ export default function LabPage() {
                       </div>
                     </div>
                   </div>
-                  <div className="text-right">
+                  <div className="text-right flex flex-col items-end gap-2">
                     <Badge variant={o.status === 'completed' ? 'success' : o.status === 'in_progress' ? 'warning' : 'secondary'}>
                       {o.status.replace('_', ' ')}
                     </Badge>
+                    <Link href={`/lab/order/${o.id}`}>
+                      <Button size="sm" variant="outline">
+                        View Details
+                      </Button>
+                    </Link>
                   </div>
                 </div>
               </CardContent>

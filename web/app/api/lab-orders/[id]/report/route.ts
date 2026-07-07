@@ -6,46 +6,53 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params
+    const { id: labOrderId } = await params
     const body = await request.json()
     const { results, uploadedBy } = body
 
-    const report = await prisma.labReport.create({
-      data: {
-        labOrderId: id,
-        results,
-        uploadedBy: uploadedBy || "System",
-      },
-    })
-
-    await prisma.labOrder.update({
-      where: { id },
-      data: { status: "completed", completedAt: new Date() },
-    })
-
-    return NextResponse.json(report, { status: 201 })
-  } catch (error) {
-    return NextResponse.json({ error: "Failed to upload report" }, { status: 500 })
-  }
-}
-
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const { id } = await params
-    const report = await prisma.labReport.findUnique({
-      where: { labOrderId: id },
-      include: { labOrder: { include: { patient: true, tests: true } } },
-    })
-
-    if (!report) {
-      return NextResponse.json({ error: "Report not found" }, { status: 404 })
+    if (!results) {
+      return NextResponse.json({ error: "Results are required" }, { status: 400 })
     }
 
-    return NextResponse.json(report)
+    const labOrder = await prisma.labOrder.findUnique({
+      where: { id: labOrderId },
+    })
+
+    if (!labOrder) {
+      return NextResponse.json({ error: "Lab order not found" }, { status: 404 })
+    }
+
+    const result = await prisma.$transaction(async (tx) => {
+      // Upsert report
+      const report = await tx.labReport.upsert({
+        where: { labOrderId },
+        create: {
+          labOrderId,
+          results,
+          uploadedBy: uploadedBy || "Lab Technician",
+        },
+        update: {
+          results,
+          uploadedBy: uploadedBy || "Lab Technician",
+          isDeleted: false,
+        },
+      })
+
+      // Update lab order status to completed
+      await tx.labOrder.update({
+        where: { id: labOrderId },
+        data: {
+          status: "completed",
+          completedAt: new Date(),
+        },
+      })
+
+      return report
+    })
+
+    return NextResponse.json(result, { status: 201 })
   } catch (error) {
-    return NextResponse.json({ error: "Failed to fetch report" }, { status: 500 })
+    console.error("POST lab report error:", error)
+    return NextResponse.json({ error: "Failed to save lab report" }, { status: 500 })
   }
 }

@@ -7,7 +7,8 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import {
   ArrowLeft, User, Phone, MapPin, Droplet, Calendar, FileText, Stethoscope,
-  Pill, Loader2, Edit, Printer, Clock, Activity, Heart, Thermometer, Weight, Ruler
+  Pill, Loader2, Edit, Printer, Clock, Activity, Heart, Thermometer, Weight, Ruler,
+  TestTube, DollarSign
 } from 'lucide-react'
 import Link from 'next/link'
 
@@ -19,7 +20,7 @@ interface PatientData {
   bloodPressure: string | null; oxygenSaturation: number | null
   height: number | null; weight: number | null; temperature: number | null
   pulse: number | null
-  consultations: any[]; prescriptions: any[]; appointments: any[]
+  consultations: any[]; prescriptions: any[]; appointments: any[]; labOrders?: any[]; invoices?: any[]
 }
 
 const bloodGroupDisplay: Record<string, string> = {
@@ -27,7 +28,7 @@ const bloodGroupDisplay: Record<string, string> = {
   AB_positive: 'AB+', AB_negative: 'AB-', O_positive: 'O+', O_negative: 'O-',
 }
 
-type Tab = 'profile' | 'visits' | 'prescriptions'
+type Tab = 'profile' | 'visits' | 'prescriptions' | 'labOrders' | 'invoices'
 
 export default function PatientDetailPage() {
   const params = useParams()
@@ -54,6 +55,8 @@ export default function PatientDetailPage() {
     { key: 'profile', label: 'Profile', icon: User },
     { key: 'visits', label: 'Visit History', icon: Clock },
     { key: 'prescriptions', label: 'Prescriptions', icon: Pill },
+    { key: 'labOrders', label: 'Lab Orders', icon: TestTube },
+    { key: 'invoices', label: 'Billing Invoices', icon: DollarSign },
   ]
 
   return (
@@ -293,6 +296,118 @@ export default function PatientDetailPage() {
                 </CardContent>
               </Card>
             ))
+          )}
+        </div>
+      )}
+
+      {/* === Tab: Lab Orders === */}
+      {activeTab === 'labOrders' && (
+        <div className="space-y-6">
+          {!patient.labOrders?.length ? (
+            <div className="text-center py-12">
+              <TestTube className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+              <p className="text-gray-500">No lab orders yet</p>
+            </div>
+          ) : (
+            patient.labOrders.map((order: any) => (
+              <Card key={order.id}>
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <div className="flex items-center gap-2">
+                      <TestTube className="h-5 w-5 text-blue-600" />
+                      <CardTitle className="text-base">Order: {order.orderNumber}</CardTitle>
+                    </div>
+                    <div className="flex items-center gap-3 text-sm text-gray-500">
+                      <span>{new Date(order.orderedAt).toLocaleDateString()}</span>
+                      <span>Dr. {order.doctor?.user?.name}</span>
+                      <Badge variant={order.status === 'completed' ? 'success' : order.status === 'in_progress' ? 'warning' : 'secondary'}>
+                        {order.status}
+                      </Badge>
+                      <Link href={`/lab/order/${order.id}`}>
+                        <Button size="sm" variant="outline">View Results</Button>
+                      </Link>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium text-gray-700">Tests Ordered:</p>
+                    <div className="flex flex-wrap gap-2">
+                      {order.tests?.map((t: any) => (
+                        <Badge key={t.id} variant="secondary">
+                          {t.testName} (₹{t.price})
+                        </Badge>
+                      ))}
+                    </div>
+                    {order.report && (
+                      <div className="mt-4 pt-3 border-t bg-blue-50/30 p-3 rounded-md">
+                        <p className="text-sm font-semibold text-blue-800 mb-2">Report Summary findings:</p>
+                        <div className="space-y-1.5">
+                          {Object.entries(order.report.results || {}).map(([key, val]) => (
+                            <p key={key} className="text-xs text-gray-700">
+                              <span className="font-medium">{key}:</span> {val as string}
+                            </p>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            ))
+          )}
+        </div>
+      )}
+
+      {/* === Tab: Invoices === */}
+      {activeTab === 'invoices' && (
+        <div className="space-y-6">
+          {!patient.invoices?.length ? (
+            <div className="text-center py-12">
+              <DollarSign className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+              <p className="text-gray-500">No invoices yet</p>
+            </div>
+          ) : (
+            patient.invoices.map((inv: any) => {
+              const paid = inv.payments?.reduce((s: number, p: any) => s + p.amount, 0) || 0
+              const due = inv.total - paid
+              return (
+                <Card key={inv.id}>
+                  <CardHeader className="pb-3 border-b">
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <div className="flex items-center gap-2">
+                        <DollarSign className="h-5 w-5 text-blue-600" />
+                        <CardTitle className="text-base">{inv.invoiceNumber} <span className="text-xs text-gray-500 font-normal">({inv.type})</span></CardTitle>
+                      </div>
+                      <div className="flex items-center gap-3 text-sm text-gray-500">
+                        <span>{new Date(inv.createdAt).toLocaleDateString()}</span>
+                        <Badge variant={inv.status === 'paid' ? 'success' : inv.status === 'partial' ? 'warning' : 'destructive'}>
+                          {inv.status}
+                        </Badge>
+                        <Link href={`/billing/${inv.id}/receipt`}>
+                          <Button size="sm" variant="outline">Receipt</Button>
+                        </Link>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="pt-4 space-y-4">
+                    <div className="space-y-1">
+                      {inv.items?.map((item: any, idx: number) => (
+                        <div key={idx} className="flex justify-between text-sm py-1 border-b last:border-0 border-gray-100">
+                          <span className="text-gray-600">{item.description} (Qty: {item.quantity})</span>
+                          <span className="font-semibold text-gray-800">₹{item.total.toLocaleString()}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex justify-between items-center text-sm pt-2 bg-gray-50 p-3 rounded-md font-medium text-gray-700">
+                      <span>Total: ₹{inv.total.toLocaleString()}</span>
+                      <span className="text-green-700">Paid: ₹{paid.toLocaleString()}</span>
+                      {due > 0 && <span className="text-red-600">Due: ₹{due.toLocaleString()}</span>}
+                    </div>
+                  </CardContent>
+                </Card>
+              )
+            })
           )}
         </div>
       )}

@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get("status")
     const patientId = searchParams.get("patientId")
 
-    const where: any = {}
+    const where: any = { isDeleted: false }
     if (status && status !== "all") where.status = status
     if (patientId) where.patientId = patientId
 
@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
     const { patientId, consultationId, doctorId, testIds } = parsed.data
 
     const lastOrder = await prisma.labOrder.findFirst({
-      orderBy: { orderedAt: "desc" },
+      orderBy: { orderNumber: "desc" },
       select: { orderNumber: true },
     })
 
@@ -57,7 +57,19 @@ export async function POST(request: NextRequest) {
       const match = lastOrder.orderNumber.match(/(\d+)$/)
       if (match) nextNumber = parseInt(match[1]) + 1
     }
-    const orderNumber = `LAB-${new Date().getFullYear()}-${String(nextNumber).padStart(3, "0")}`
+    let orderNumber = `LAB-${new Date().getFullYear()}-${String(nextNumber).padStart(3, "0")}`
+
+    let exists = await prisma.labOrder.findUnique({
+      where: { orderNumber },
+    })
+
+    while (exists) {
+      nextNumber++
+      orderNumber = `LAB-${new Date().getFullYear()}-${String(nextNumber).padStart(3, "0")}`
+      exists = await prisma.labOrder.findUnique({
+        where: { orderNumber },
+      })
+    }
 
     const tests = await prisma.labTest.findMany({
       where: { id: { in: testIds } },

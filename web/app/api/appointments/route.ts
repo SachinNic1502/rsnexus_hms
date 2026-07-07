@@ -78,12 +78,22 @@ export async function POST(request: NextRequest) {
     }
 
     const lastAppointment = await prisma.appointment.findFirst({
-      orderBy: { createdAt: "desc" },
+      orderBy: { appointmentNumber: "desc" },
       select: { appointmentNumber: true },
-      where: { isDeleted: false },
     })
 
-    const appointmentNumber = generateSequentialNumber("APT", lastAppointment?.appointmentNumber)
+    let appointmentNumber = generateSequentialNumber("APT", lastAppointment?.appointmentNumber)
+
+    let exists = await prisma.appointment.findFirst({
+      where: { appointmentNumber },
+    })
+
+    while (exists) {
+      appointmentNumber = generateSequentialNumber("APT", appointmentNumber)
+      exists = await prisma.appointment.findFirst({
+        where: { appointmentNumber },
+      })
+    }
 
     const tokenNumber = await prisma.appointment.count({
       where: {
@@ -116,6 +126,42 @@ export async function POST(request: NextRequest) {
         department: true,
       },
     })
+
+    // Query OPD Consultation Fee service from catalog
+    const consultationFeeService = await prisma.service.findFirst({
+      where: {
+        isActive: true,
+        name: { contains: "consultation", mode: "insensitive" },
+      },
+    })
+
+    if (consultationFeeService) {
+      const invoiceNumber = `INV-${new Date().getFullYear()}-${Date.now().toString().slice(-6).toUpperCase()}`
+      await prisma.invoice.create({
+        data: {
+          patientId,
+          appointmentId: appointment.id,
+          invoiceNumber,
+          type: "OPD",
+          subtotal: consultationFeeService.price,
+          tax: 0,
+          discount: 0,
+          total: consultationFeeService.price,
+          status: "pending",
+          items: {
+            create: [
+              {
+                description: `OPD Consultation Fee - Dr. ${appointment.doctor.user.name}`,
+                quantity: 1,
+                unitPrice: consultationFeeService.price,
+                total: consultationFeeService.price,
+                type: "service",
+              }
+            ]
+          }
+        }
+      })
+    }
 
     return NextResponse.json(appointment, { status: 201 })
   } catch (error) {

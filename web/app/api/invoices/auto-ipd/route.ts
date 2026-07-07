@@ -123,7 +123,7 @@ export async function POST(request: NextRequest) {
 
     // Generate invoice number
     const lastInvoice = await prisma.invoice.findFirst({
-      orderBy: { createdAt: "desc" },
+      orderBy: { invoiceNumber: "desc" },
       select: { invoiceNumber: true },
     })
     let nextNumber = 1
@@ -131,7 +131,19 @@ export async function POST(request: NextRequest) {
       const match = lastInvoice.invoiceNumber.match(/(\d+)$/)
       if (match) nextNumber = parseInt(match[1]) + 1
     }
-    const invoiceNumber = `INV-${new Date().getFullYear()}-${String(nextNumber).padStart(3, "0")}`
+    let invoiceNumber = `INV-${new Date().getFullYear()}-${String(nextNumber).padStart(3, "0")}`
+
+    let exists = await prisma.invoice.findFirst({
+      where: { invoiceNumber },
+    })
+
+    while (exists) {
+      nextNumber++
+      invoiceNumber = `INV-${new Date().getFullYear()}-${String(nextNumber).padStart(3, "0")}`
+      exists = await prisma.invoice.findFirst({
+        where: { invoiceNumber },
+      })
+    }
 
     const subtotal = items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0)
 

@@ -25,6 +25,16 @@ export async function GET(
           orderBy: { createdAt: "desc" },
           take: 10,
         },
+        labOrders: {
+          include: { doctor: { include: { user: true } }, tests: true, report: true },
+          orderBy: { orderedAt: "desc" },
+          take: 10,
+        },
+        invoices: {
+          include: { items: true, payments: true },
+          orderBy: { createdAt: "desc" },
+          take: 10,
+        },
       },
     })
 

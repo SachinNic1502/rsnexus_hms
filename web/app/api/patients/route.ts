@@ -68,12 +68,22 @@ export async function POST(request: NextRequest) {
     }
 
     const lastPatient = await prisma.patient.findFirst({
-      orderBy: { createdAt: "desc" },
+      orderBy: { uhid: "desc" },
       select: { uhid: true },
-      where: { isDeleted: false },
     })
 
-    const uhid = generateSequentialNumber("UHID", lastPatient?.uhid)
+    let uhid = generateSequentialNumber("UHID", lastPatient?.uhid)
+
+    let exists = await prisma.patient.findUnique({
+      where: { uhid },
+    })
+
+    while (exists) {
+      uhid = generateSequentialNumber("UHID", uhid)
+      exists = await prisma.patient.findUnique({
+        where: { uhid },
+      })
+    }
 
     const patient = await prisma.patient.create({
       data: {

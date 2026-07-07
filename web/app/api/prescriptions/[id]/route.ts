@@ -26,3 +26,30 @@ export async function GET(
     return NextResponse.json({ error: "Failed to fetch prescription" }, { status: 500 })
   }
 }
+
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params
+    const body = await request.json()
+    const { status } = body
+
+    const prescription = await prisma.prescription.update({
+      where: { id },
+      data: { status },
+      include: {
+        patient: true,
+        doctor: { include: { user: true } },
+        consultation: true,
+        medicines: true,
+      },
+    })
+
+    return NextResponse.json(prescription)
+  } catch (error) {
+    console.error("PUT prescription error:", error)
+    return NextResponse.json({ error: "Failed to update prescription" }, { status: 500 })
+  }
+}

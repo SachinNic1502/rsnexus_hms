@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { ArrowLeft, Plus, Loader2, Edit, Trash2, Pill } from 'lucide-react'
+import { ArrowLeft, Plus, Loader2, Edit, Trash2, Pill, Package } from 'lucide-react'
 import Link from 'next/link'
 import { useToast } from '@/components/ui/toast'
 import { ConfirmDialog } from '@/components/ui/dialog'
@@ -31,6 +31,8 @@ export default function MedicinesPage() {
   const [deleteTarget, setDeleteTarget] = useState<Medicine | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [search, setSearch] = useState('')
+  const [stockTarget, setStockTarget] = useState<Medicine | null>(null)
+  const [stockValue, setStockValue] = useState<number>(0)
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm<MedicineForm>({
     resolver: zodResolver(medicineSchema),
@@ -81,7 +83,7 @@ export default function MedicinesPage() {
   return (
     <div className="p-8">
       <div className="mb-6">
-        <Link href="/"><Button variant="ghost" className="mb-4"><ArrowLeft className="mr-2 h-4 w-4" /> Back</Button></Link>
+        <Link href="/dashboard"><Button variant="ghost" className="mb-4"><ArrowLeft className="mr-2 h-4 w-4" /> Back</Button></Link>
         <div className="flex items-center justify-between">
           <div><h1 className="text-3xl font-bold text-gray-900">Medicine Catalog</h1><p className="text-gray-600 mt-1">Manage medicines and stock</p></div>
           <Button onClick={openCreate}><Plus className="mr-2 h-4 w-4" /> Add Medicine</Button>
@@ -139,7 +141,11 @@ export default function MedicinesPage() {
                     <td className="p-3">{m.manufacturer || '-'}</td>
                     <td className="p-3 text-right"><Badge variant={m.stock < 10 ? 'destructive' : 'default'}>{m.stock}</Badge></td>
                     <td className="p-3 text-right">₹{m.price}</td>
-                    <td className="p-3 text-right"><Button variant="ghost" size="sm" onClick={() => openEdit(m)}><Edit className="h-4 w-4" /></Button><Button variant="ghost" size="sm" onClick={() => setDeleteTarget(m)}><Trash2 className="h-4 w-4 text-red-500" /></Button></td>
+                    <td className="p-3 text-right flex gap-1 justify-end">
+                      <Button variant="ghost" size="sm" title="Quick Stock Update" onClick={() => { setStockTarget(m); setStockValue(m.stock) }}><Package className="h-4 w-4 text-blue-600" /></Button>
+                      <Button variant="ghost" size="sm" onClick={() => openEdit(m)}><Edit className="h-4 w-4" /></Button>
+                      <Button variant="ghost" size="sm" onClick={() => setDeleteTarget(m)}><Trash2 className="h-4 w-4 text-red-500" /></Button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -149,6 +155,49 @@ export default function MedicinesPage() {
       )}
 
       <ConfirmDialog open={!!deleteTarget} onClose={() => setDeleteTarget(null)} onConfirm={handleDelete} title="Delete Medicine" message={`Delete "${deleteTarget?.name}"? This cannot be undone.`} confirmLabel="Delete" loading={deleting} />
+
+      {stockTarget && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <Card className="w-96 shadow-xl">
+            <CardHeader><CardTitle>Update Stock: {stockTarget.name}</CardTitle></CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <label className="text-sm font-medium text-gray-500">Current Stock Quantity</label>
+                <Input
+                  type="number"
+                  value={stockValue}
+                  onChange={(e) => setStockValue(parseInt(e.target.value) || 0)}
+                  className="mt-2 text-lg"
+                  min="0"
+                />
+              </div>
+              <div className="flex gap-2 justify-end pt-2">
+                <Button type="button" variant="outline" onClick={() => setStockTarget(null)}>Cancel</Button>
+                <Button
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                  onClick={async () => {
+                    try {
+                      const res = await fetch(`/api/medicines/${stockTarget.id}/stock`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ stock: stockValue }),
+                      })
+                      if (!res.ok) throw new Error('Failed to update stock')
+                      toast('Stock updated successfully!', 'success')
+                      setStockTarget(null)
+                      fetchMedicines()
+                    } catch (err: any) {
+                      toast(err.message, 'error')
+                    }
+                  }}
+                >
+                  Save Stock
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   )
 }

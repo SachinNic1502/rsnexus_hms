@@ -4,200 +4,238 @@ import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { ArrowLeft, Download, Loader2, Calendar, Users, BedDouble, IndianRupee, TestTube } from 'lucide-react'
+import { Input } from '@/components/ui/input'
+import { ArrowLeft, Loader2, Calendar, TrendingUp, DollarSign, Users } from 'lucide-react'
 import Link from 'next/link'
-import { exportToExcel, exportToPDF } from '@/lib/export-utils'
 import { useToast } from '@/components/ui/toast'
-
-interface DailyReport {
-  date: string
-  summary: {
-    totalAppointments: number
-    completedAppointments: number
-    cancelledAppointments: number
-    newAdmissions: number
-    discharges: number
-    totalRevenue: number
-    totalCollected: number
-    pendingAmount: number
-    labOrders: number
-    labCompleted: number
-  }
-  appointments: any[]
-  admissions: any[]
-  discharges: any[]
-  invoices: any[]
-}
 
 export default function DailyReportPage() {
   const { toast } = useToast()
-  const [report, setReport] = useState<DailyReport | null>(null)
+  const [date, setDate] = useState(() => new Date().toISOString().split('T')[0])
+  const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0])
 
-  useEffect(() => { fetchReport() }, [date])
+  useEffect(() => {
+    fetchReport()
+  }, [date])
 
   const fetchReport = async () => {
     setLoading(true)
     try {
       const res = await fetch(`/api/reports?type=daily&date=${date}`)
-      if (res.ok) setReport(await res.json())
-    } catch { toast('Failed to fetch report', 'error') }
-    finally { setLoading(false) }
-  }
-
-  const handleExportExcel = () => {
-    if (!report) return
-    const data = [
-      { Metric: 'Date', Value: report.date },
-      { Metric: 'Total Appointments', Value: report.summary.totalAppointments },
-      { Metric: 'Completed', Value: report.summary.completedAppointments },
-      { Metric: 'Cancelled', Value: report.summary.cancelledAppointments },
-      { Metric: 'New Admissions', Value: report.summary.newAdmissions },
-      { Metric: 'Discharges', Value: report.summary.discharges },
-      { Metric: 'Total Revenue', Value: report.summary.totalRevenue },
-      { Metric: 'Collected', Value: report.summary.totalCollected },
-      { Metric: 'Pending', Value: report.summary.pendingAmount },
-      { Metric: 'Lab Orders', Value: report.summary.labOrders },
-    ]
-    exportToExcel(data, `daily-report-${date}`)
-  }
-
-  const handleExportPDF = () => {
-    if (!report) return
-    const headers = ['Metric', 'Value']
-    const rows = [
-      ['Total Appointments', report.summary.totalAppointments],
-      ['Completed', report.summary.completedAppointments],
-      ['Cancelled', report.summary.cancelledAppointments],
-      ['New Admissions', report.summary.newAdmissions],
-      ['Discharges', report.summary.discharges],
-      ['Total Revenue', `₹${report.summary.totalRevenue.toLocaleString()}`],
-      ['Collected', `₹${report.summary.totalCollected.toLocaleString()}`],
-      ['Pending', `₹${report.summary.pendingAmount.toLocaleString()}`],
-    ]
-    exportToPDF(`Daily Report - ${date}`, headers, rows, `daily-report-${date}`)
+      if (res.ok) setData(await res.json())
+    } catch {
+      toast('Failed to fetch daily report', 'error')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
     <div className="p-8">
-      <div className="mb-6">
-        <Link href="/reports">
-          <Button variant="ghost" className="mb-4">
-            <ArrowLeft className="mr-2 h-4 w-4" /> Back to Reports
-          </Button>
-        </Link>
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Daily Report</h1>
-            <p className="text-gray-600 mt-1">Daily hospital operations summary</p>
-          </div>
-          <div className="flex items-center gap-3">
-            <input
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              className="flex h-9 rounded-md border border-input bg-transparent px-3 py-1 text-sm"
-            />
-            <Button variant="outline" onClick={handleExportExcel}>
-              <Download className="mr-2 h-4 w-4" /> Excel
+      <div className="mb-6 flex items-center justify-between no-print print:hidden">
+        <div>
+          <Link href="/reports">
+            <Button variant="ghost" className="mb-2 -ml-2">
+              <ArrowLeft className="mr-2 h-4 w-4" /> Back to Reports
             </Button>
-            <Button variant="outline" onClick={handleExportPDF}>
-              <Download className="mr-2 h-4 w-4" /> PDF
-            </Button>
-          </div>
+          </Link>
+          <h1 className="text-3xl font-bold text-gray-900">Daily Report</h1>
+        </div>
+        <div className="flex items-center gap-3">
+          <Input
+            type="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            className="w-48"
+          />
+          <Button onClick={() => window.print()}>Print</Button>
         </div>
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center h-64">
+        <div className="flex items-center justify-center h-48">
           <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
         </div>
-      ) : report ? (
-        <>
+      ) : !data ? (
+        <div className="text-center text-red-500 py-8">Failed to load report data</div>
+      ) : (
+        <div className="space-y-6">
           {/* Summary Cards */}
-          <div className="grid grid-cols-5 gap-4 mb-6">
-            {[
-              { label: 'Appointments', value: report.summary.totalAppointments, icon: Users, color: 'text-blue-600' },
-              { label: 'Admissions', value: report.summary.newAdmissions, icon: BedDouble, color: 'text-green-600' },
-              { label: 'Discharges', value: report.summary.discharges, icon: BedDouble, color: 'text-purple-600' },
-              { label: 'Revenue', value: `₹${report.summary.totalRevenue.toLocaleString()}`, icon: IndianRupee, color: 'text-orange-600' },
-              { label: 'Lab Orders', value: report.summary.labOrders, icon: TestTube, color: 'text-cyan-600' },
-            ].map((stat, i) => (
-              <Card key={i}>
-                <CardContent className="p-4">
-                  <stat.icon className={`h-5 w-5 ${stat.color} mb-1`} />
-                  <p className="text-2xl font-bold">{stat.value}</p>
-                  <p className="text-sm text-gray-500">{stat.label}</p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-
-          {/* Appointments Table */}
-          {report.appointments.length > 0 && (
-            <Card className="mb-6">
-              <CardHeader>
-                <CardTitle>Appointments ({report.appointments.length})</CardTitle>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-gray-500 uppercase">Appointments</CardTitle>
               </CardHeader>
               <CardContent>
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b">
-                      <th className="text-left p-2">Token</th>
-                      <th className="text-left p-2">Patient</th>
-                      <th className="text-left p-2">Doctor</th>
-                      <th className="text-left p-2">Department</th>
-                      <th className="text-left p-2">Time</th>
-                      <th className="text-left p-2">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {report.appointments.map((apt: any, i: number) => (
-                      <tr key={i} className="border-b hover:bg-gray-50">
-                        <td className="p-2">#{apt.tokenNumber}</td>
-                        <td className="p-2">{apt.patient}</td>
-                        <td className="p-2">{apt.doctor}</td>
-                        <td className="p-2">{apt.department}</td>
-                        <td className="p-2">{apt.time}</td>
-                        <td className="p-2">
-                          <Badge variant={apt.status === 'completed' ? 'default' : 'secondary'}>
-                            {apt.status}
-                          </Badge>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                <div className="text-3xl font-bold">{data.summary.totalAppointments}</div>
+                <p className="text-xs text-gray-600 mt-1">{data.summary.completedAppointments} completed · {data.summary.cancelledAppointments} cancelled</p>
               </CardContent>
             </Card>
-          )}
 
-          {/* Revenue Summary */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Revenue Summary</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-3 gap-4">
-                <div className="p-4 bg-green-50 rounded-lg">
-                  <p className="text-sm text-gray-600">Total Revenue</p>
-                  <p className="text-2xl font-bold text-green-600">₹{report.summary.totalRevenue.toLocaleString()}</p>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-gray-500 uppercase">Admissions & Discharges</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold">+{data.summary.newAdmissions} / -{data.summary.discharges}</div>
+                <p className="text-xs text-gray-600 mt-1">New admissions vs discharged patients</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-gray-500 uppercase">Daily Revenue</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold">₹{data.summary.totalRevenue.toLocaleString()}</div>
+                <p className="text-xs text-gray-600 mt-1">Collected: ₹{data.summary.totalCollected.toLocaleString()}</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-gray-500 uppercase">Lab Orders</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold">{data.summary.labOrders}</div>
+                <p className="text-xs text-gray-600 mt-1">{data.summary.labCompleted} completed tests</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Details Tabs/Tables */}
+          <div className="grid grid-cols-1 gap-6">
+            {/* Appointments */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Appointments Queue</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm text-left border-collapse">
+                    <thead>
+                      <tr className="bg-gray-50 border-b">
+                        <th className="p-3 font-semibold text-gray-700">Appt No.</th>
+                        <th className="p-3 font-semibold text-gray-700">Patient</th>
+                        <th className="p-3 font-semibold text-gray-700">Doctor</th>
+                        <th className="p-3 font-semibold text-gray-700">Department</th>
+                        <th className="p-3 font-semibold text-gray-700">Time</th>
+                        <th className="p-3 font-semibold text-gray-700">Type</th>
+                        <th className="p-3 font-semibold text-gray-700">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {data.appointments.length === 0 ? (
+                        <tr><td colSpan={7} className="p-4 text-center text-gray-500">No appointments recorded for this day</td></tr>
+                      ) : data.appointments.map((a: any) => (
+                        <tr key={a.number} className="border-b hover:bg-gray-50/50">
+                          <td className="p-3 font-medium text-gray-900">{a.number}</td>
+                          <td className="p-3 text-gray-800">{a.patient}</td>
+                          <td className="p-3 text-gray-600">{a.doctor}</td>
+                          <td className="p-3 text-gray-600">{a.department}</td>
+                          <td className="p-3 text-gray-600">{a.time}</td>
+                          <td className="p-3 text-gray-600 capitalize">{a.type}</td>
+                          <td className="p-3"><Badge variant={a.status === 'completed' ? 'success' : a.status === 'cancelled' ? 'destructive' : 'secondary'}>{a.status}</Badge></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
-                <div className="p-4 bg-blue-50 rounded-lg">
-                  <p className="text-sm text-gray-600">Collected</p>
-                  <p className="text-2xl font-bold text-blue-600">₹{report.summary.totalCollected.toLocaleString()}</p>
+              </CardContent>
+            </Card>
+
+            {/* Admissions */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader><CardTitle className="text-lg">Admissions Today</CardTitle></CardHeader>
+                <CardContent>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm text-left">
+                      <thead>
+                        <tr className="bg-gray-50 border-b">
+                          <th className="p-3 font-semibold text-gray-700">Adm No.</th>
+                          <th className="p-3 font-semibold text-gray-700">Patient</th>
+                          <th className="p-3 font-semibold text-gray-700">Ward/Bed</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {data.admissions.length === 0 ? (
+                          <tr><td colSpan={3} className="p-4 text-center text-gray-500">No admissions today</td></tr>
+                        ) : data.admissions.map((a: any) => (
+                          <tr key={a.number} className="border-b">
+                            <td className="p-3 font-medium">{a.number}</td>
+                            <td className="p-3">{a.patient}</td>
+                            <td className="p-3">{a.ward} (Bed: {a.bed})</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader><CardTitle className="text-lg">Discharges Today</CardTitle></CardHeader>
+                <CardContent>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm text-left">
+                      <thead>
+                        <tr className="bg-gray-50 border-b">
+                          <th className="p-3 font-semibold text-gray-700">Adm No.</th>
+                          <th className="p-3 font-semibold text-gray-700">Patient</th>
+                          <th className="p-3 font-semibold text-gray-700">Ward</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {data.discharges.length === 0 ? (
+                          <tr><td colSpan={3} className="p-4 text-center text-gray-500">No discharges today</td></tr>
+                        ) : data.discharges.map((d: any) => (
+                          <tr key={d.number} className="border-b">
+                            <td className="p-3 font-medium">{d.number}</td>
+                            <td className="p-3">{d.patient}</td>
+                            <td className="p-3">{d.ward}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Invoices */}
+            <Card>
+              <CardHeader><CardTitle className="text-lg">Invoices & Collections</CardTitle></CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm text-left">
+                    <thead>
+                      <tr className="bg-gray-50 border-b">
+                        <th className="p-3 font-semibold text-gray-700">Invoice No.</th>
+                        <th className="p-3 font-semibold text-gray-700">Total Amt</th>
+                        <th className="p-3 font-semibold text-gray-700">Paid Amt</th>
+                        <th className="p-3 font-semibold text-gray-700">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {data.invoices.length === 0 ? (
+                        <tr><td colSpan={4} className="p-4 text-center text-gray-500">No invoices today</td></tr>
+                      ) : data.invoices.map((inv: any) => (
+                        <tr key={inv.number} className="border-b">
+                          <td className="p-3 font-medium">{inv.number}</td>
+                          <td className="p-3 font-semibold">₹{inv.total.toLocaleString()}</td>
+                          <td className="p-3 text-green-600 font-semibold">₹{inv.paid.toLocaleString()}</td>
+                          <td className="p-3"><Badge variant={inv.status === 'paid' ? 'success' : inv.status === 'partial' ? 'warning' : 'destructive'}>{inv.status}</Badge></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
-                <div className="p-4 bg-red-50 rounded-lg">
-                  <p className="text-sm text-gray-600">Pending</p>
-                  <p className="text-2xl font-bold text-red-600">₹{report.summary.pendingAmount.toLocaleString()}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </>
-      ) : (
-        <p className="text-center text-gray-500">No data available</p>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
       )}
     </div>
   )

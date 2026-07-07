@@ -2,20 +2,21 @@
 
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { ArrowLeft, Users, Building2, Stethoscope, Settings as SettingsIcon } from 'lucide-react'
+import { ArrowLeft, Users, Building2, Stethoscope, Settings as SettingsIcon, ClipboardList } from 'lucide-react'
 import Link from 'next/link'
 
 const settingsPages = [
   { title: 'User Management', description: 'Manage system users, roles, and access', href: '/settings/users', icon: Users, color: 'bg-blue-500' },
   { title: 'Departments', description: 'Manage hospital departments', href: '/settings/departments', icon: Building2, color: 'bg-green-500' },
   { title: 'Doctor Management', description: 'Manage doctor availability and specializations', href: '/settings/doctors', icon: Stethoscope, color: 'bg-purple-500' },
+  { title: 'System Audit Logs', description: 'View staff audit trails and system logs', href: '/settings/audit-logs', icon: ClipboardList, color: 'bg-amber-500' },
 ]
 
 export default function SettingsPage() {
   return (
     <div className="p-8">
       <div className="mb-6">
-        <Link href="/"><Button variant="ghost" className="mb-4"><ArrowLeft className="mr-2 h-4 w-4" /> Back to Dashboard</Button></Link>
+        <Link href="/dashboard"><Button variant="ghost" className="mb-4"><ArrowLeft className="mr-2 h-4 w-4" /> Back to Dashboard</Button></Link>
         <div className="flex items-center gap-3">
           <SettingsIcon className="h-8 w-8 text-gray-600" />
           <div>

@@ -5,7 +5,7 @@ import { handleApiError } from "@/lib/error-handler"
 import type { InvoiceWhereInput } from "@/lib/types"
 import { getToken } from "next-auth/jwt"
 
-const billingRoles = ["super_admin", "hospital_admin", "billing_staff"]
+const billingRoles = ["super_admin", "hospital_admin", "billing_staff", "receptionist"]
 
 export async function GET(request: NextRequest) {
   try {
@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
     const { patientId, admissionId, appointmentId, type, items, tax, discount } = parsed.data
 
     const lastInvoice = await prisma.invoice.findFirst({
-      orderBy: { createdAt: "desc" },
+      orderBy: { invoiceNumber: "desc" },
       select: { invoiceNumber: true },
     })
 
@@ -72,7 +72,19 @@ export async function POST(request: NextRequest) {
       const match = lastInvoice.invoiceNumber.match(/(\d+)$/)
       if (match) nextNumber = parseInt(match[1]) + 1
     }
-    const invoiceNumber = `INV-${new Date().getFullYear()}-${String(nextNumber).padStart(3, "0")}`
+    let invoiceNumber = `INV-${new Date().getFullYear()}-${String(nextNumber).padStart(3, "0")}`
+
+    let exists = await prisma.invoice.findFirst({
+      where: { invoiceNumber },
+    })
+
+    while (exists) {
+      nextNumber++
+      invoiceNumber = `INV-${new Date().getFullYear()}-${String(nextNumber).padStart(3, "0")}`
+      exists = await prisma.invoice.findFirst({
+        where: { invoiceNumber },
+      })
+    }
 
     const subtotal = items.reduce((sum: number, item: any) => sum + item.quantity * item.unitPrice, 0)
     const total = subtotal + tax - discount

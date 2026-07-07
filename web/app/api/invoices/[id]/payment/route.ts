@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { z } from "zod"
+import { getAuthUser } from "@/lib/api-utils"
+import { createAuditLog } from "@/lib/audit"
 
 const paymentSchema = z.object({
   amount: z.number().min(0.01, "Amount must be greater than 0"),
@@ -25,7 +27,7 @@ export async function POST(
 
     const invoice = await prisma.invoice.findUnique({
       where: { id },
-      include: { payments: true },
+      include: { payments: true, patient: true },
     })
     if (!invoice) {
       return NextResponse.json({ error: "Invoice not found" }, { status: 404 })
@@ -62,6 +64,15 @@ export async function POST(
         paidAt: newStatus === "paid" ? new Date() : undefined,
       },
     })
+
+    const authUser = await getAuthUser(request)
+    if (authUser) {
+      await createAuditLog({
+        userId: authUser.id,
+        action: "PAYMENT",
+        details: `Processed payment of ₹${amount.toLocaleString()} via ${method} for invoice ${invoice.invoiceNumber} (Patient: ${invoice.patient.name}). New Invoice Status: ${newStatus.toUpperCase()}`,
+      })
+    }
 
     return NextResponse.json(payment, { status: 201 })
   } catch (error) {

@@ -23,7 +23,8 @@ export async function GET(
 
     return NextResponse.json(labOrder)
   } catch (error) {
-    return NextResponse.json({ error: "Failed to fetch lab order" }, { status: 500 })
+    console.error("GET lab order details error:", error)
+    return NextResponse.json({ error: "Failed to fetch lab order details" }, { status: 500 })
   }
 }
 
@@ -34,29 +35,31 @@ export async function PUT(
   try {
     const { id } = await params
     const body = await request.json()
+    const { status } = body
 
-    if (body.status) {
-      const updateData: any = { status: body.status }
-      if (body.status === "completed") {
-        updateData.completedAt = new Date()
-      }
-
-      const labOrder = await prisma.labOrder.update({
-        where: { id },
-        data: updateData,
-        include: {
-          patient: true,
-          doctor: { include: { user: true } },
-          tests: true,
-          report: true,
-        },
-      })
-
-      return NextResponse.json(labOrder)
+    if (!status || !["pending", "in_progress", "completed"].includes(status)) {
+      return NextResponse.json({ error: "Invalid status value" }, { status: 400 })
     }
 
-    return NextResponse.json({ error: "Invalid update" }, { status: 400 })
+    const updateData: any = { status }
+    if (status === "completed") {
+      updateData.completedAt = new Date()
+    }
+
+    const labOrder = await prisma.labOrder.update({
+      where: { id },
+      data: updateData,
+      include: {
+        patient: true,
+        doctor: { include: { user: true } },
+        tests: true,
+        report: true,
+      },
+    })
+
+    return NextResponse.json(labOrder)
   } catch (error) {
-    return NextResponse.json({ error: "Failed to update lab order" }, { status: 500 })
+    console.error("PUT lab order status error:", error)
+    return NextResponse.json({ error: "Failed to update lab order status" }, { status: 500 })
   }
 }

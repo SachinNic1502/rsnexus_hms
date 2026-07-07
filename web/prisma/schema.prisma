@@ -231,6 +231,7 @@ model Prescription {
   consultationId  String?  @unique @db.ObjectId
   patientId       String   @db.ObjectId
   doctorId        String   @db.ObjectId
+  status          String   @default("pending")
   isDeleted       Boolean  @default(false)
   deletedAt       DateTime?
   deletedBy       String?  @db.ObjectId
@@ -563,4 +564,16 @@ model Service {
   deletedBy   String?  @db.ObjectId
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+// ─── Audit Logs ──────────────────────────────────────────
+
+model AuditLog {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String?  @db.ObjectId
+  userName    String
+  userRole    String
+  action      String
+  details     String
+  createdAt   DateTime @default(now())
 }

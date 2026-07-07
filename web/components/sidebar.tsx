@@ -21,6 +21,7 @@ import {
   X,
   UserPlus,
   FileText,
+  BedDouble,
 } from 'lucide-react'
 
 const sections = [
@@ -46,6 +47,17 @@ const sections = [
       { name: 'Today\'s Patients', href: '/opd', icon: Stethoscope },
       { name: 'History', href: '/patients', icon: FileText },
       { name: 'Prescriptions', href: '/prescriptions', icon: Pill },
+    ],
+  },
+  // Nurse
+  {
+    label: 'Nurse',
+    roles: ['nurse'] as UserRole[],
+    items: [
+      { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+      { name: 'IPD Admissions', href: '/ipd', icon: BedDouble },
+      { name: 'Bed Dashboard', href: '/wards/beds', icon: BedDouble },
+      { name: 'Patient List', href: '/patients', icon: Users },
     ],
   },
   // Billing Staff

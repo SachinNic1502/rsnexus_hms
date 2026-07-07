@@ -13,6 +13,7 @@ import { useAuth } from '@/lib/auth-context'
 interface PrescriptionList {
   id: string
   createdAt: string
+  status: string
   patient: { name: string; uhid: string }
   doctor: { user: { name: string }; specialization: string }
   medicines: { medicineName: string }[]
@@ -79,7 +80,7 @@ export default function PrescriptionsPage() {
           {filtered.map((p) => (
             <Card key={p.id}>
               <CardContent className="p-6">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between flex-wrap gap-4">
                   <div className="flex items-center gap-4">
                     <div className="p-3 rounded-full bg-blue-100">
                       <FileText className="h-6 w-6 text-blue-600" />
@@ -87,18 +88,42 @@ export default function PrescriptionsPage() {
                     <div>
                       <p className="font-semibold text-lg">{p.patient.name}</p>
                       <p className="text-sm text-gray-600">UHID: {p.patient.uhid}</p>
-                      <div className="flex items-center gap-4 mt-1 text-sm text-gray-500">
+                      <div className="flex items-center gap-4 mt-1 text-sm text-gray-500 flex-wrap">
                         <span className="flex items-center gap-1"><User className="h-3.5 w-3.5" /> Dr. {p.doctor.user.name}</span>
                         <span className="flex items-center gap-1"><Pill className="h-3.5 w-3.5" /> {p.medicines.length} medicine{p.medicines.length !== 1 ? 's' : ''}</span>
                         <span className="flex items-center gap-1"><Calendar className="h-3.5 w-3.5" /> {new Date(p.createdAt).toLocaleDateString('en-IN')}</span>
+                        <Badge variant={p.status === 'dispensed' ? 'success' : 'secondary'} className="capitalize">{p.status || 'pending'}</Badge>
                       </div>
                     </div>
                   </div>
-                  <Link href={`/prescriptions/${p.id}`}>
-                    <Button variant="outline" size="sm">
-                      <Eye className="mr-2 h-4 w-4" /> View
-                    </Button>
-                  </Link>
+                  <div className="flex items-center gap-2">
+                    {user?.role === 'pharmacist' && p.status !== 'dispensed' && (
+                      <Button
+                        size="sm"
+                        onClick={async () => {
+                          try {
+                            const res = await fetch(`/api/prescriptions/${p.id}`, {
+                              method: 'PUT',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ status: 'dispensed' }),
+                            })
+                            if (!res.ok) throw new Error('Failed to dispense prescription')
+                            toast('Prescription dispensed successfully!', 'success')
+                            fetchPrescriptions()
+                          } catch (err: any) {
+                            toast(err.message, 'error')
+                          }
+                        }}
+                      >
+                        Dispense
+                      </Button>
+                    )}
+                    <Link href={`/prescriptions/${p.id}`}>
+                      <Button variant="outline" size="sm">
+                        <Eye className="mr-2 h-4 w-4" /> View
+                      </Button>
+                    </Link>
+                  </div>
                 </div>
               </CardContent>
             </Card>

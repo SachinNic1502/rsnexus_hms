@@ -73,7 +73,7 @@ export default function ServicesPage() {
   return (
     <div className="p-8">
       <div className="mb-6">
-        <Link href="/"><Button variant="ghost" className="mb-4"><ArrowLeft className="mr-2 h-4 w-4" /> Back</Button></Link>
+        <Link href="/dashboard"><Button variant="ghost" className="mb-4"><ArrowLeft className="mr-2 h-4 w-4" /> Back</Button></Link>
         <div className="flex items-center justify-between">
           <div><h1 className="text-3xl font-bold text-gray-900">Service Catalog</h1><p className="text-gray-600 mt-1">Manage hospital services and pricing</p></div>
           <Button onClick={openCreate}><Plus className="mr-2 h-4 w-4" /> Add Service</Button>

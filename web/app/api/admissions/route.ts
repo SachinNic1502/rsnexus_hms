@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
     const { patientId, doctorId, wardId, roomId, bedId } = parsed.data
 
     const lastAdmission = await prisma.admission.findFirst({
-      orderBy: { admissionDate: "desc" },
+      orderBy: { admissionNumber: "desc" },
       select: { admissionNumber: true },
     })
 
@@ -54,7 +54,19 @@ export async function POST(request: NextRequest) {
       const match = lastAdmission.admissionNumber.match(/(\d+)$/)
       if (match) nextNumber = parseInt(match[1]) + 1
     }
-    const admissionNumber = `ADM-${new Date().getFullYear()}-${String(nextNumber).padStart(3, "0")}`
+    let admissionNumber = `ADM-${new Date().getFullYear()}-${String(nextNumber).padStart(3, "0")}`
+
+    let exists = await prisma.admission.findUnique({
+      where: { admissionNumber },
+    })
+
+    while (exists) {
+      nextNumber++
+      admissionNumber = `ADM-${new Date().getFullYear()}-${String(nextNumber).padStart(3, "0")}`
+      exists = await prisma.admission.findUnique({
+        where: { admissionNumber },
+      })
+    }
 
     const [admission] = await prisma.$transaction([
       prisma.admission.create({

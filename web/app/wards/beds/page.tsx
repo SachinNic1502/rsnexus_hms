@@ -45,7 +45,31 @@ export default function BedDashboardPage() {
         fetch('/api/wards'),
       ])
       if (bedsRes.ok) { const data = await bedsRes.json(); setBeds(Array.isArray(data) ? data : []) }
-      if (wardsRes.ok) { const data = await wardsRes.json(); setWardStats(Array.isArray(data) ? data : []) }
+      if (wardsRes.ok) {
+        const data = await wardsRes.json()
+        if (Array.isArray(data)) {
+          const mapped = data.map((w: any) => {
+            const total = w.totalBeds || 0
+            const occupied = w.occupiedBeds || 0
+            const available = w.availableBeds || 0
+            const maintenance = w.rooms?.flatMap((r: any) => r.beds || []).filter((b: any) => b.status === 'maintenance').length || 0
+            const rate = total > 0 ? Math.round((occupied / total) * 100) : 0
+            return {
+              id: w.id,
+              name: w.name,
+              type: w.type,
+              totalBeds: total,
+              occupied,
+              available,
+              maintenance,
+              occupancyRate: rate
+            }
+          })
+          setWardStats(mapped)
+        } else {
+          setWardStats([])
+        }
+      }
     } catch { toast('Failed to fetch bed data', 'error') }
     finally { setLoading(false) }
   }

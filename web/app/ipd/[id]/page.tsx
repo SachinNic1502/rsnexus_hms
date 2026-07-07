@@ -101,10 +101,33 @@ export default function AdmissionDetailPage() {
       </Card>
 
       {/* Invoices */}
-      {admission.invoices?.length > 0 && (
-        <Card>
-          <CardHeader><CardTitle className="flex items-center gap-2"><FileText className="h-5 w-5" /> Invoices</CardTitle></CardHeader>
-          <CardContent>
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="flex items-center gap-2"><FileText className="h-5 w-5" /> Invoices</CardTitle>
+          {(!admission.invoices || admission.invoices.length === 0) && (
+            <Button size="sm" onClick={async () => {
+              try {
+                const res = await fetch('/api/invoices/auto-ipd', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ admissionId: params.id }),
+                })
+                const data = await res.json()
+                if (!res.ok) throw new Error(data.error || 'Failed to generate invoice')
+                toast('IPD Invoice generated successfully!', 'success')
+                fetchAdmission()
+              } catch (err: any) {
+                toast(err.message, 'error')
+              }
+            }}>
+              Generate IPD Invoice
+            </Button>
+          )}
+        </CardHeader>
+        <CardContent>
+          {!admission.invoices?.length ? (
+            <p className="text-gray-500 text-center py-4">No invoices generated yet</p>
+          ) : (
             <div className="space-y-2">
               {admission.invoices.map((inv: any) => {
                 const paid = inv.payments?.reduce((s: number, p: any) => s + p.amount, 0) || 0
@@ -116,16 +139,16 @@ export default function AdmissionDetailPage() {
                     </div>
                     <div className="flex items-center gap-4">
                       <span className="font-medium">₹{inv.total.toLocaleString()}</span>
-                      <Badge variant={inv.status === 'paid' ? 'default' : 'destructive'}>{inv.status}</Badge>
+                      <Badge variant={inv.status === 'paid' ? 'success' : inv.status === 'partial' ? 'warning' : 'destructive'}>{inv.status}</Badge>
                       <Link href={`/billing/${inv.id}/payment`}><Button size="sm" variant="outline">Pay</Button></Link>
                     </div>
                   </div>
                 )
               })}
             </div>
-          </CardContent>
-        </Card>
-      )}
+          )}
+        </CardContent>
+      </Card>
     </div>
   )
 }

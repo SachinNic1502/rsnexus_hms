@@ -34,8 +34,25 @@ export default function OPDPage() {
   const { toast } = useToast()
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [loading, setLoading] = useState(true)
+  const [countdown, setCountdown] = useState(30)
 
-  useEffect(() => { fetchTodayAppointments() }, [])
+  useEffect(() => {
+    fetchTodayAppointments()
+
+    const refreshInterval = setInterval(() => {
+      fetchTodayAppointments()
+      setCountdown(30)
+    }, 30000)
+
+    const countdownInterval = setInterval(() => {
+      setCountdown((prev) => (prev > 1 ? prev - 1 : 30))
+    }, 1000)
+
+    return () => {
+      clearInterval(refreshInterval)
+      clearInterval(countdownInterval)
+    }
+  }, [])
 
   const fetchTodayAppointments = async () => {
     try {
@@ -57,9 +74,16 @@ export default function OPDPage() {
 
   return (
     <div className="p-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">OPD Queue</h1>
-        <p className="text-gray-600 mt-1">Today&apos;s patient queue and check-in management</p>
+      <div className="mb-8 flex justify-between items-center flex-wrap gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">OPD Queue</h1>
+          <p className="text-gray-600 mt-1">Today&apos;s patient queue and check-in management</p>
+        </div>
+        <div className="flex items-center gap-2 text-sm text-gray-500 bg-gray-50 border px-3 py-1.5 rounded-lg">
+          <Clock className="h-4 w-4 text-blue-500 animate-pulse" />
+          <span>Refreshing in <span className="font-semibold text-blue-600">{countdown}s</span></span>
+          <Button variant="ghost" className="h-6 px-2 text-xs ml-1" onClick={() => { fetchTodayAppointments(); setCountdown(30); }}>Refresh Now</Button>
+        </div>
       </div>
 
       {loading ? (

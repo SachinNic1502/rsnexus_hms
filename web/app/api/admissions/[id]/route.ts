@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { z } from "zod"
+import { getAuthUser } from "@/lib/api-utils"
+import { createAuditLog } from "@/lib/audit"
 
 const dischargeSchema = z.object({
   status: z.literal("discharged"),
@@ -167,6 +169,15 @@ export async function PUT(
           data: { status: "available", currentPatientId: null },
         }),
       ])
+
+      const authUser = await getAuthUser(request)
+      if (authUser) {
+        await createAuditLog({
+          userId: authUser.id,
+          action: "DISCHARGE",
+          details: `Discharged patient ${updatedAdmission.patient.name} (${updatedAdmission.patient.uhid}) from Ward: ${updatedAdmission.ward.name}, Room: ${updatedAdmission.room.roomNumber}, Bed: ${updatedAdmission.bed.bedNumber}`,
+        })
+      }
 
       return NextResponse.json({ ...updatedAdmission, invoiceId })
     }

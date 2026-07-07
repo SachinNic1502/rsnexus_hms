@@ -4,246 +4,223 @@ import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { ArrowLeft, Download, Loader2, BedDouble, Bed, CheckCircle, AlertTriangle } from 'lucide-react'
+import { ArrowLeft, Loader2, BedDouble, Users, UserCheck } from 'lucide-react'
 import Link from 'next/link'
-import { exportToExcel, exportToPDF } from '@/lib/export-utils'
 import { useToast } from '@/components/ui/toast'
 
-interface BedOccupancyReport {
-  summary: {
-    totalBeds: number
-    occupiedBeds: number
-    availableBeds: number
-    occupancyRate: number
-  }
-  wards: {
-    id: string
-    name: string
-    type: string
-    totalBeds: number
-    occupied: number
-    available: number
-    maintenance: number
-    occupancyRate: number
-    rooms: {
-      id: string
-      number: string
-      type: string
-      bedCount: number
-      beds: {
-        id: string
-        number: string
-        status: string
-        patient: string | null
-        doctor: string | null
-        admittedAt: string | null
-      }[]
-    }[]
-  }[]
-  admittedPatients: {
-    patient: string
-    ward: string
-    room: string
-    bed: string
-    doctor: string
-    admittedAt: string
-    daysAdmitted: number
-  }[]
-}
-
-export default function BedOccupancyPage() {
+export default function BedOccupancyReportPage() {
   const { toast } = useToast()
-  const [report, setReport] = useState<BedOccupancyReport | null>(null)
+  const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => { fetchReport() }, [])
+  useEffect(() => {
+    fetchReport()
+  }, [])
 
   const fetchReport = async () => {
     setLoading(true)
     try {
       const res = await fetch('/api/reports?type=bed-occupancy')
-      if (res.ok) setReport(await res.json())
-    } catch { toast('Failed to fetch report', 'error') }
-    finally { setLoading(false) }
+      if (res.ok) setData(await res.json())
+    } catch {
+      toast('Failed to fetch bed occupancy report', 'error')
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const handleExportExcel = () => {
-    if (!report) return
-    const data: any[] = [
-      { Metric: 'Total Beds', Value: report.summary.totalBeds },
-      { Metric: 'Occupied', Value: report.summary.occupiedBeds },
-      { Metric: 'Available', Value: report.summary.availableBeds },
-      { Metric: 'Occupancy Rate', Value: `${report.summary.occupancyRate}%` },
-      { Metric: '---', Value: '---' },
-    ]
-    report.wards.forEach((w) => {
-      data.push({ Metric: `${w.name} (Total)`, Value: w.totalBeds })
-      data.push({ Metric: `${w.name} (Occupied)`, Value: w.occupied })
-      data.push({ Metric: `${w.name} (Available)`, Value: w.available })
-    })
-    data.push({ Metric: '---', Value: '---' })
-    report.admittedPatients.forEach((p) => {
-      data.push({ Metric: p.patient, Value: `${p.ward} / R${p.room} / B${p.bed} - ${p.daysAdmitted} days` })
-    })
-    exportToExcel(data, `bed-occupancy-report`)
-  }
-
-  const handleExportPDF = () => {
-    if (!report) return
-    const headers = ['Ward', 'Total', 'Occupied', 'Available', 'Maintenance', 'Rate']
-    const rows = report.wards.map((w) => [
-      w.name, w.totalBeds, w.occupied, w.available, w.maintenance, `${w.occupancyRate}%`,
-    ])
-    rows.push(['TOTAL', report.summary.totalBeds, report.summary.occupiedBeds, report.summary.availableBeds, '', `${report.summary.occupancyRate}%`])
-    exportToPDF('Bed Occupancy Report', headers, rows, 'bed-occupancy-report')
-  }
-
-  const bedStatusColor = (status: string) => {
-    switch (status) {
-      case 'available': return 'bg-green-100 text-green-800 border-green-300'
-      case 'occupied': return 'bg-red-100 text-red-800 border-red-300'
-      case 'maintenance': return 'bg-yellow-100 text-yellow-800 border-yellow-300'
-      default: return 'bg-gray-100'
+  const getStatusColor = (status: string) => {
+    switch (status.toLowerCase()) {
+      case 'occupied': return 'destructive'
+      case 'available': return 'success'
+      case 'maintenance': return 'warning'
+      default: return 'default'
     }
   }
 
   return (
     <div className="p-8">
-      <div className="mb-6">
-        <Link href="/reports">
-          <Button variant="ghost" className="mb-4">
-            <ArrowLeft className="mr-2 h-4 w-4" /> Back to Reports
-          </Button>
-        </Link>
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Bed Occupancy Report</h1>
-            <p className="text-gray-600 mt-1">Current bed status across all wards</p>
-          </div>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={handleExportExcel}>
-              <Download className="mr-2 h-4 w-4" /> Excel
+      <div className="mb-6 flex items-center justify-between no-print print:hidden">
+        <div>
+          <Link href="/reports">
+            <Button variant="ghost" className="mb-2 -ml-2">
+              <ArrowLeft className="mr-2 h-4 w-4" /> Back to Reports
             </Button>
-            <Button variant="outline" onClick={handleExportPDF}>
-              <Download className="mr-2 h-4 w-4" /> PDF
-            </Button>
-          </div>
+          </Link>
+          <h1 className="text-3xl font-bold text-gray-900">Bed Occupancy Analytics</h1>
         </div>
+        <Button onClick={() => window.print()}>Print</Button>
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center h-64">
+        <div className="flex items-center justify-center h-48">
           <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
         </div>
-      ) : report ? (
-        <>
-          {/* Summary */}
-          <div className="grid grid-cols-4 gap-4 mb-6">
-            {[
-              { label: 'Total Beds', value: report.summary.totalBeds, icon: BedDouble, color: 'text-blue-600' },
-              { label: 'Available', value: report.summary.availableBeds, icon: CheckCircle, color: 'text-green-600' },
-              { label: 'Occupied', value: report.summary.occupiedBeds, icon: Bed, color: 'text-red-600' },
-              { label: 'Occupancy Rate', value: `${report.summary.occupancyRate}%`, icon: AlertTriangle, color: report.summary.occupancyRate > 80 ? 'text-red-600' : 'text-green-600' },
-            ].map((stat, i) => (
-              <Card key={i}>
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3">
-                    <stat.icon className={`h-5 w-5 ${stat.color}`} />
-                    <div>
-                      <p className="text-2xl font-bold">{stat.value}</p>
-                      <p className="text-sm text-gray-500">{stat.label}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-
-          {/* Ward-wise breakdown */}
-          <div className="grid grid-cols-2 gap-6 mb-6">
-            {report.wards.map((ward) => (
-              <Card key={ward.id}>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-lg">{ward.name}</CardTitle>
-                    <Badge variant="outline">{ward.type}</Badge>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center gap-4 mb-3 text-sm">
-                    <span>Total: <strong>{ward.totalBeds}</strong></span>
-                    <span className="text-green-600">Avail: <strong>{ward.available}</strong></span>
-                    <span className="text-red-600">Occ: <strong>{ward.occupied}</strong></span>
-                    {ward.maintenance > 0 && (
-                      <span className="text-yellow-600">Maint: <strong>{ward.maintenance}</strong></span>
-                    )}
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2 mb-3">
-                    <div
-                      className={`h-2 rounded-full ${ward.occupancyRate > 80 ? 'bg-red-500' : ward.occupancyRate > 50 ? 'bg-yellow-500' : 'bg-green-500'}`}
-                      style={{ width: `${ward.occupancyRate}%` }}
-                    />
-                  </div>
-                  <div className="grid grid-cols-4 gap-1">
-                    {ward.rooms.map((room) =>
-                      room.beds.map((bed) => (
-                        <div
-                          key={bed.id}
-                          className={`p-1.5 rounded border text-center text-xs ${bedStatusColor(bed.status)}`}
-                          title={bed.patient ? `${bed.patient} (${bed.doctor})` : bed.status}
-                        >
-                          <p className="font-medium">{bed.number}</p>
-                          {bed.patient && <p className="truncate text-[10px]">{bed.patient}</p>}
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-
-          {/* Currently Admitted Patients */}
-          {report.admittedPatients.length > 0 && (
+      ) : !data ? (
+        <div className="text-center text-red-500 py-8">Failed to load report data</div>
+      ) : (
+        <div className="space-y-6">
+          {/* Summary metrics */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             <Card>
-              <CardHeader>
-                <CardTitle>Currently Admitted Patients ({report.admittedPatients.length})</CardTitle>
-              </CardHeader>
+              <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-gray-500 uppercase">Total Beds</CardTitle></CardHeader>
+              <CardContent><div className="text-3xl font-bold">{data.summary.totalBeds}</div></CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-gray-500 uppercase">Occupied Beds</CardTitle></CardHeader>
+              <CardContent><div className="text-3xl font-bold text-red-600">{data.summary.occupiedBeds}</div></CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-gray-500 uppercase">Available Beds</CardTitle></CardHeader>
+              <CardContent><div className="text-3xl font-bold text-green-600">{data.summary.availableBeds}</div></CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-gray-500 uppercase">Occupancy Rate</CardTitle></CardHeader>
+              <CardContent><div className="text-3xl font-bold text-blue-600">{data.summary.occupancyRate}%</div></CardContent>
+            </Card>
+          </div>
+          {data.wards.length > 0 && (
+            <Card className="mb-6">
+              <CardHeader><CardTitle className="text-lg">Occupancy Rate by Ward</CardTitle></CardHeader>
               <CardContent>
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b">
-                      <th className="text-left p-2">Patient</th>
-                      <th className="text-left p-2">Ward</th>
-                      <th className="text-left p-2">Room</th>
-                      <th className="text-left p-2">Bed</th>
-                      <th className="text-left p-2">Doctor</th>
-                      <th className="text-right p-2">Days Admitted</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {report.admittedPatients.map((p, i) => (
-                      <tr key={i} className="border-b hover:bg-gray-50">
-                        <td className="p-2 font-medium">{p.patient}</td>
-                        <td className="p-2">{p.ward}</td>
-                        <td className="p-2">{p.room}</td>
-                        <td className="p-2">{p.bed}</td>
-                        <td className="p-2">{p.doctor}</td>
-                        <td className="p-2 text-right">
-                          <Badge variant={p.daysAdmitted > 7 ? 'destructive' : 'secondary'}>
-                            {p.daysAdmitted} days
-                          </Badge>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                <div className="p-4 border rounded-lg bg-gray-50/50">
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Bed Occupancy Proportions</p>
+                  <svg viewBox="0 0 500 160" className="w-full h-40">
+                    <line x1="40" y1="120" x2="480" y2="120" stroke="#e2e8f0" strokeWidth="1.5" />
+                    <line x1="40" y1="70" x2="480" y2="70" stroke="#e2e8f0" strokeDasharray="3 3" />
+                    <line x1="40" y1="20" x2="480" y2="20" stroke="#e2e8f0" strokeDasharray="3 3" />
+
+                    {data.wards.map((ward: any, idx: number) => {
+                      const barHeight = (ward.occupancyRate / 100) * 90
+                      const xOffset = 60 + idx * 100
+
+                      return (
+                        <g key={ward.id}>
+                          <rect
+                            x={xOffset}
+                            y={120 - barHeight}
+                            width="36"
+                            height={barHeight}
+                            fill="#2563eb"
+                            rx="3"
+                          />
+                          <text x={xOffset + 18} y="135" textAnchor="middle" className="text-[10px] fill-gray-500 font-medium">{ward.name}</text>
+                          <text x={xOffset + 18} y={115 - barHeight} textAnchor="middle" className="text-[10px] font-bold fill-blue-600">{ward.occupancyRate}%</text>
+                        </g>
+                      )
+                    })}
+                  </svg>
+                </div>
               </CardContent>
             </Card>
           )}
-        </>
-      ) : (
-        <p className="text-center text-gray-500">No data available</p>
+
+          {/* Wards breakdown */}
+          <Card>
+            <CardHeader><CardTitle className="text-lg">Ward Breakdown & Bed Status</CardTitle></CardHeader>
+            <CardContent className="space-y-6">
+              {data.wards.length === 0 ? (
+                <p className="text-center text-gray-500 py-4">No wards registered in system</p>
+              ) : data.wards.map((ward: any) => (
+                <div key={ward.id} className="border p-4 rounded-lg bg-gray-50/50 space-y-4">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <div>
+                      <h3 className="font-bold text-lg text-gray-900">{ward.name}</h3>
+                      <p className="text-xs text-gray-500">Floor: {ward.floor} · Type: <span className="capitalize">{ward.type}</span></p>
+                    </div>
+                    <div className="flex gap-4 text-xs">
+                      <span>Total: <span className="font-semibold">{ward.totalBeds}</span></span>
+                      <span className="text-green-600">Available: <span className="font-semibold">{ward.available}</span></span>
+                      <span className="text-red-600">Occupied: <span className="font-semibold">{ward.occupied}</span></span>
+                      <span className="text-yellow-600">Maintenance: <span className="font-semibold">{ward.maintenance}</span></span>
+                      <Badge variant="outline" className="font-bold text-blue-600 border-blue-200 bg-blue-50">{ward.occupancyRate}% Occupied</Badge>
+                    </div>
+                  </div>
+
+                  {/* Rooms inside ward */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                    {ward.rooms.map((room: any) => (
+                      <Card key={room.id} className="bg-white">
+                        <CardContent className="p-3.5 space-y-2">
+                          <p className="text-sm font-bold text-gray-700">Room {room.number} <span className="text-xs text-gray-400 font-normal">({room.type})</span></p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {room.beds.map((bed: any) => (
+                              <Badge
+                                key={bed.id}
+                                variant={getStatusColor(bed.status) as any}
+                                className="text-[10px] cursor-help px-1.5 py-0.5"
+                                title={bed.patient ? `Patient: ${bed.patient} · Admitted: ${new Date(bed.admittedAt).toLocaleDateString()}` : `Bed ${bed.number}`}
+                              >
+                                Bed {bed.number}
+                              </Badge>
+                            ))}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+
+          {/* Admitted Patients details */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-lg">Currently Admitted Patients ({data.admittedPatients.length})</CardTitle>
+                <Users className="h-5 w-5 text-gray-400" />
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3 max-h-96 overflow-y-auto">
+                  {data.admittedPatients.length === 0 ? (
+                    <p className="text-gray-500 text-center py-4">No admitted patients</p>
+                  ) : data.admittedPatients.map((ap: any, i: number) => (
+                    <div key={i} className="flex justify-between items-start p-3 border rounded-lg hover:bg-gray-50">
+                      <div>
+                        <p className="font-semibold text-sm text-gray-900">{ap.patient}</p>
+                        <p className="text-xs text-gray-500">{ap.ward} · Room {ap.room}, Bed {ap.bed}</p>
+                        <p className="text-xs text-gray-400">Dr. {ap.doctor}</p>
+                      </div>
+                      <div className="text-right text-xs">
+                        <Badge variant="outline">{ap.daysAdmitted} Days Admitted</Badge>
+                        <p className="text-[10px] text-gray-400 mt-1">{new Date(ap.admittedAt).toLocaleDateString()}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-lg">Recent Discharges</CardTitle>
+                <UserCheck className="h-5 w-5 text-gray-400" />
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3 max-h-96 overflow-y-auto">
+                  {data.recentDischarges.length === 0 ? (
+                    <p className="text-gray-500 text-center py-4">No recent discharges logged</p>
+                  ) : data.recentDischarges.map((rd: any, i: number) => (
+                    <div key={i} className="flex justify-between items-center p-3 border rounded-lg bg-gray-50/50">
+                      <div>
+                        <p className="font-semibold text-sm text-gray-800">{rd.patient}</p>
+                        <p className="text-xs text-gray-500">{rd.ward} (Bed: {rd.bed})</p>
+                      </div>
+                      <div className="text-right text-xs">
+                        <Badge variant="secondary">Discharged</Badge>
+                        <p className="text-[10px] text-gray-400 mt-1">{new Date(rd.dischargedAt).toLocaleDateString()}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
       )}
     </div>
   )

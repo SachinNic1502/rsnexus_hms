@@ -17,7 +17,7 @@ export default function ReportsPage() {
   return (
     <div className="p-8">
       <div className="mb-6">
-        <Link href="/">
+        <Link href="/dashboard">
           <Button variant="ghost" className="mb-4">
             <ArrowLeft className="mr-2 h-4 w-4" /> Back to Dashboard
           </Button>

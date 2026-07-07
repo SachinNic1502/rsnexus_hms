@@ -46,10 +46,11 @@ export const consultationSchema = z.object({
 
 // ─── Prescription ────────────────────────────────────────
 export const prescriptionItemSchema = z.object({
-  medicineId: z.string().min(1, 'Medicine is required'),
-  dosage: z.string().min(1, 'Dosage is required'),
-  frequency: z.string().min(1, 'Frequency is required'),
-  duration: z.string().min(1, 'Duration is required'),
+  medicineId: z.string().optional().or(z.literal('')),
+  dose: z.string().optional().or(z.literal('')),
+  dosage: z.string().optional().or(z.literal('')),
+  frequency: z.string().optional().or(z.literal('')),
+  duration: z.string().optional().or(z.literal('')),
   instructions: z.string().optional().or(z.literal('')),
   timing: z.string().optional().or(z.literal('')),
   foodInstruction: z.string().optional().or(z.literal('')),

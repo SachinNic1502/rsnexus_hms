@@ -53,21 +53,6 @@ const getStatusColor = (status: string) => {
   }
 }
 
-const getTodayString = () => {
-  const d = new Date()
-  const offset = d.getTimezoneOffset()
-  const localDate = new Date(d.getTime() - offset * 60 * 1000)
-  return localDate.toISOString().split('T')[0]
-}
-
-const getTomorrowString = () => {
-  const d = new Date()
-  d.setDate(d.getDate() + 1)
-  const offset = d.getTimezoneOffset()
-  const localDate = new Date(d.getTime() - offset * 60 * 1000)
-  return localDate.toISOString().split('T')[0]
-}
-
 export default function AppointmentsPage() {
   const { toast } = useToast()
   const [view, setView] = useState<'list' | 'calendar'>('list')
@@ -76,8 +61,6 @@ export default function AppointmentsPage() {
   
   // List view filters
   const [filterStatus, setFilterStatus] = useState<string>('all')
-  const [filterDate, setFilterDate] = useState<string>('today')
-  const [customDate, setCustomDate] = useState<string>(getTodayString())
 
   // Calendar view states
   const [currentDate, setCurrentDate] = useState(new Date())
@@ -86,7 +69,7 @@ export default function AppointmentsPage() {
 
   useEffect(() => {
     fetchAppointments()
-  }, [view, filterStatus, filterDate, customDate, currentDate])
+  }, [view, filterStatus, currentDate])
 
   useEffect(() => {
     if (view === 'calendar') {
@@ -111,17 +94,6 @@ export default function AppointmentsPage() {
       if (view === 'list') {
         if (filterStatus !== 'all') {
           params.set('status', filterStatus)
-        }
-        let dateParam = ''
-        if (filterDate === 'today') {
-          dateParam = getTodayString()
-        } else if (filterDate === 'tomorrow') {
-          dateParam = getTomorrowString()
-        } else if (filterDate === 'custom' && customDate) {
-          dateParam = customDate
-        }
-        if (dateParam) {
-          params.set('date', dateParam)
         }
       }
 
@@ -221,7 +193,7 @@ export default function AppointmentsPage() {
       {view === 'list' ? (
         <>
           {/* Filters Section */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 border-b pb-6">
+          <div className="mb-6 border-b pb-6">
             {/* Status Filter Tabs */}
             <div className="space-y-2">
               <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block">Status</span>
@@ -236,31 +208,6 @@ export default function AppointmentsPage() {
                     {status === 'all' ? 'All Statuses' : status.replace('_', ' ').replace(/\b\w/g, (l) => l.toUpperCase())}
                   </Button>
                 ))}
-              </div>
-            </div>
-
-            {/* Date Filter Tabs */}
-            <div className="space-y-2">
-              <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block">Schedule Date</span>
-              <div className="flex flex-wrap items-center gap-2">
-                {['today', 'tomorrow', 'all', 'custom'].map((d) => (
-                  <Button
-                    key={d}
-                    variant={filterDate === d ? 'default' : 'outline'}
-                    onClick={() => setFilterDate(d)}
-                    className="h-9 text-xs px-3 capitalize"
-                  >
-                    {d}
-                  </Button>
-                ))}
-                {filterDate === 'custom' && (
-                  <input
-                    type="date"
-                    value={customDate}
-                    onChange={(e) => setCustomDate(e.target.value)}
-                    className="flex h-9 rounded-md border border-input bg-background px-3 py-1 text-xs"
-                  />
-                )}
               </div>
             </div>
           </div>

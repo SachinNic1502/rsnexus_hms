@@ -1,0 +1,7 @@
+- [x] Auto-generate pending OPD consultation fee invoice upon booking an appointment
+- [x] Pre-populate vitals from appointment data on doctor consultation view
+- [x] Verify compilation via `npx tsc --noEmit`
+- [x] Implement Phase 1: Pharmacy Inventory Automation (Automatic stock reduction + dispense checks)
+- [x] Implement Phase 2: IPD Billing Charge Integration (Auto-link dispensed medicines during stay to final IPD invoice)
+- [x] Implement Phase 3: Split Payments & Insurance Claims (Support Insurance claim tracking on payment)
+- [x] Unify Appointments List and Weekly Calendar views on a single Appointments page

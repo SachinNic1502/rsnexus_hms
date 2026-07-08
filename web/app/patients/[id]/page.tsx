@@ -30,6 +30,85 @@ const bloodGroupDisplay: Record<string, string> = {
 
 type Tab = 'profile' | 'visits' | 'prescriptions' | 'labOrders' | 'invoices'
 
+function VitalsLineChart({ data, dataKey, label, color, unit, minVal, maxVal }: { data: any[], dataKey: string, label: string, color: string, unit: string, minVal: number, maxVal: number }) {
+  const chartHeight = 130
+  const chartWidth = 320
+  const paddingLeft = 35
+  const paddingRight = 15
+  const paddingTop = 20
+  const paddingBottom = 25
+
+  const points = data.filter(d => d[dataKey] !== null && d[dataKey] !== undefined)
+  if (points.length === 0) return <p className="text-xs text-gray-500 text-center py-6">No data points recorded</p>
+
+  const values = points.map(p => p[dataKey] as number)
+  const min = Math.min(...values, minVal)
+  const max = Math.max(...values, maxVal)
+  const range = max - min === 0 ? 1 : max - min
+
+  const getX = (index: number) => {
+    if (points.length <= 1) return paddingLeft + (chartWidth - paddingLeft - paddingRight) / 2
+    return paddingLeft + (index / (points.length - 1)) * (chartWidth - paddingLeft - paddingRight)
+  }
+
+  const getY = (value: number) => {
+    return chartHeight - paddingBottom - ((value - min) / range) * (chartHeight - paddingTop - paddingBottom)
+  }
+
+  let pathD = ''
+  points.forEach((p, idx) => {
+    const x = getX(idx)
+    const y = getY(p[dataKey])
+    if (idx === 0) pathD = `M ${x} ${y}`
+    else pathD += ` L ${x} ${y}`
+  })
+
+  return (
+    <div className="bg-white border rounded-lg p-3 shadow-xs">
+      <h4 className="text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wider">{label} ({unit})</h4>
+      <div className="relative">
+        <svg width="100%" height={chartHeight} viewBox={`0 0 ${chartWidth} ${chartHeight}`} className="overflow-visible">
+          {[min, min + range / 2, max].map((val, idx) => {
+            const y = getY(val)
+            return (
+              <g key={idx} className="opacity-40">
+                <line x1={paddingLeft} y1={y} x2={chartWidth - paddingRight} y2={y} stroke="#e5e7eb" strokeDasharray="3,3" strokeWidth={1} />
+                <text x={paddingLeft - 8} y={y + 3} textAnchor="end" fontSize={8} className="fill-gray-500 font-mono">
+                  {val.toFixed(1)}
+                </text>
+              </g>
+            )
+          })}
+
+          {points.map((p, idx) => {
+            const x = getX(idx)
+            return (
+              <text key={idx} x={x} y={chartHeight - 6} textAnchor="middle" fontSize={8} className="fill-gray-500 font-mono opacity-80">
+                {p.dateStr}
+              </text>
+            )
+          })}
+
+          {points.length > 1 && (
+            <path d={pathD} fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+          )}
+
+          {points.map((p, idx) => {
+            const x = getX(idx)
+            const y = getY(p[dataKey])
+            return (
+              <g key={idx} className="group">
+                <circle cx={x} cy={y} r={4} fill={color} stroke="white" strokeWidth={1.5} className="transition-all cursor-pointer hover:r-6" />
+                <title>{`${p.dateStr}: ${p[dataKey]} ${unit}`}</title>
+              </g>
+            )
+          })}
+        </svg>
+      </div>
+    </div>
+  )
+}
+
 export default function PatientDetailPage() {
   const params = useParams()
   const [patient, setPatient] = useState<PatientData | null>(null)
@@ -46,6 +125,23 @@ export default function PatientDetailPage() {
       setPatient(await res.json())
     } catch (err: any) { setError(err.message) }
     finally { setLoading(false) }
+  }
+
+  const getVitalsHistory = () => {
+    if (!patient?.appointments) return []
+    return patient.appointments
+      .filter(apt => apt.temperature || apt.bloodPressure || apt.pulse || apt.oxygenSaturation || apt.weight || apt.height)
+      .map(apt => ({
+        date: new Date(apt.date),
+        dateStr: new Date(apt.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
+        temp: apt.temperature || null,
+        pulse: apt.pulse || null,
+        spo2: apt.oxygenSaturation || null,
+        weight: apt.weight || null,
+        height: apt.height || null,
+        bp: apt.bloodPressure || '',
+      }))
+      .sort((a, b) => a.date.getTime() - b.date.getTime())
   }
 
   if (loading) return <div className="flex items-center justify-center h-96"><Loader2 className="h-8 w-8 animate-spin text-gray-400" /></div>
@@ -179,6 +275,46 @@ export default function PatientDetailPage() {
                       <p className="font-semibold">{patient.height} cm</p>
                     </div>
                   )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Vitals History Trends Chart */}
+          {getVitalsHistory().length >= 1 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2"><Activity className="h-5 w-5" /> Vitals History & Trends</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  <VitalsLineChart
+                    data={getVitalsHistory()}
+                    dataKey="temp"
+                    label="Temperature"
+                    color="#f97316"
+                    unit="°F"
+                    minVal={97}
+                    maxVal={102}
+                  />
+                  <VitalsLineChart
+                    data={getVitalsHistory()}
+                    dataKey="pulse"
+                    label="Pulse / Heart Rate"
+                    color="#ec4899"
+                    unit="bpm"
+                    minVal={60}
+                    maxVal={100}
+                  />
+                  <VitalsLineChart
+                    data={getVitalsHistory()}
+                    dataKey="spo2"
+                    label="SpO2 (Oxygen Saturation)"
+                    color="#3b82f6"
+                    unit="%"
+                    minVal={90}
+                    maxVal={100}
+                  />
                 </div>
               </CardContent>
             </Card>

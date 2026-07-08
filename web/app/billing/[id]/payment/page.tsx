@@ -43,6 +43,11 @@ export default function PaymentPage() {
   const [method, setMethod] = useState('cash')
   const [transactionId, setTransactionId] = useState('')
 
+  // Insurance State Fields
+  const [insuranceProvider, setInsuranceProvider] = useState('')
+  const [policyNumber, setPolicyNumber] = useState('')
+  const [preAuthId, setPreAuthId] = useState('')
+
   useEffect(() => { fetchInvoice() }, [params.id])
 
   const fetchInvoice = async () => {
@@ -63,10 +68,14 @@ export default function PaymentPage() {
     setError('')
     setProcessing(true)
     try {
+      let finalTransactionId = transactionId
+      if (method === 'insurance') {
+        finalTransactionId = `Provider: ${insuranceProvider}, Policy: ${policyNumber}, PreAuth: ${preAuthId}`
+      }
       const res = await fetch(`/api/invoices/${invoice.id}/payment`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount, method, transactionId: transactionId || undefined, receivedBy: 'System' }),
+        body: JSON.stringify({ amount, method, transactionId: finalTransactionId || undefined, receivedBy: 'System' }),
       })
       if (!res.ok) {
         const d = await res.json()
@@ -164,6 +173,47 @@ export default function PaymentPage() {
                       className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                       placeholder="Optional"
                     />
+                  </div>
+                )}
+
+                {method === 'insurance' && (
+                  <div className="space-y-4 border-t pt-4">
+                    <h4 className="text-sm font-semibold text-gray-700">Insurance Claim Information</h4>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <label className="text-xs text-gray-500 font-medium">Insurance Provider *</label>
+                        <input
+                          type="text"
+                          required
+                          value={insuranceProvider}
+                          onChange={(e) => setInsuranceProvider(e.target.value)}
+                          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                          placeholder="e.g. Star Health"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs text-gray-500 font-medium">Policy Number *</label>
+                        <input
+                          type="text"
+                          required
+                          value={policyNumber}
+                          onChange={(e) => setPolicyNumber(e.target.value)}
+                          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                          placeholder="e.g. POL123456"
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs text-gray-500 font-medium">Pre-Authorization ID / Claim Ref *</label>
+                      <input
+                        type="text"
+                        required
+                        value={preAuthId}
+                        onChange={(e) => setPreAuthId(e.target.value)}
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                        placeholder="e.g. AUTH-987654"
+                      />
+                    </div>
                   </div>
                 )}
 

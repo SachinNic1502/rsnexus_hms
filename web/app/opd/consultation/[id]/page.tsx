@@ -36,6 +36,18 @@ export default function ConsultationPage() {
       if (!res.ok) throw new Error('Appointment not found')
       const a = await res.json()
       setAppointment(a)
+      
+      // Populate vitals recorded at registration
+      setVitals({
+        temperature: a.temperature ? String(a.temperature) : '',
+        bloodPressure: a.bloodPressure || '',
+        pulse: a.pulse ? String(a.pulse) : '',
+        respiratoryRate: '',
+        oxygenSaturation: a.oxygenSaturation ? String(a.oxygenSaturation) : '',
+        weight: a.weight ? String(a.weight) : '',
+        height: a.height ? String(a.height) : '',
+      })
+
       if (a.status !== 'in_progress') {
         await fetch(`/api/appointments/${params.id}`, {
           method: 'PUT',

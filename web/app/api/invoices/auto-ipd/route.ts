@@ -85,6 +85,25 @@ export async function POST(request: NextRequest) {
     }
 
     // 4. Lab tests (fetch lab orders for this patient during admission period)
+function parseQuantity(duration: string, frequency: string): number {
+  const daysMatch = duration.match(/(\d+)/)
+  const days = daysMatch ? parseInt(daysMatch[1]) : 1
+
+  let timesPerDay = 1
+  const freqLower = frequency.toLowerCase()
+  if (freqLower.includes("twice") || freqLower.includes("bd") || freqLower.includes("b.i.d")) {
+    timesPerDay = 2
+  } else if (freqLower.includes("three") || freqLower.includes("thrice") || freqLower.includes("tds") || freqLower.includes("t.i.d")) {
+    timesPerDay = 3
+  } else if (freqLower.includes("four") || freqLower.includes("qds") || freqLower.includes("q.i.d")) {
+    timesPerDay = 4
+  } else if (freqLower.includes("once") || freqLower.includes("od")) {
+    timesPerDay = 1
+  }
+
+  return days * timesPerDay
+}
+
     const labOrders = await prisma.labOrder.findMany({
       where: {
         patientId: admission.patientId,
@@ -103,7 +122,37 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 5. Extra charges added manually
+    // 5. Prescribed & Dispensed medicines during admission period
+    const prescriptions = await prisma.prescription.findMany({
+      where: {
+        patientId: admission.patientId,
+        status: "dispensed",
+        createdAt: { gte: admissionDate, lte: endDate },
+        isDeleted: false,
+      },
+      include: { medicines: true },
+    })
+
+    for (const prescription of prescriptions) {
+      for (const med of prescription.medicines) {
+        let price = 0
+        if (med.medicineId) {
+          const medicine = await prisma.medicine.findUnique({ where: { id: med.medicineId } })
+          if (medicine) price = medicine.price
+        }
+        if (price > 0) {
+          const qty = parseQuantity(med.duration, med.frequency)
+          items.push({
+            description: `Rx Medicine: ${med.medicineName} - ${med.dose} (${med.frequency}, ${med.duration})`,
+            quantity: qty,
+            unitPrice: price,
+            type: "medicine",
+          })
+        }
+      }
+    }
+
+    // 6. Extra charges added manually
     if (Array.isArray(extraCharges)) {
       for (const charge of extraCharges) {
         if (charge.description && charge.unitPrice > 0) {

@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Plus, Calendar, Clock, User, Stethoscope, Loader2, CalendarX, Edit, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Plus, Calendar, Clock, User, Stethoscope, Loader2, CalendarX, Edit, ChevronLeft, ChevronRight, Receipt } from 'lucide-react'
 import Link from 'next/link'
 import { useToast } from '@/components/ui/toast'
 
@@ -29,6 +29,12 @@ interface Appointment {
   department: {
     name: string
   }
+  invoices?: {
+    id: string
+    invoiceNumber: string
+    total: number
+    status: string
+  }[]
 }
 
 const timeSlots = [
@@ -50,6 +56,24 @@ const getStatusColor = (status: string) => {
       return 'destructive'
     default:
       return 'default'
+  }
+}
+
+const getBillingBadge = (invoices?: any[]) => {
+  if (!invoices || invoices.length === 0) {
+    return { text: 'Not Generated', variant: 'secondary' as const }
+  }
+  const status = invoices[0].status
+  switch (status) {
+    case 'paid':
+      return { text: 'Paid', variant: 'success' as const }
+    case 'partial':
+      return { text: 'Partial', variant: 'warning' as const }
+    case 'cancelled':
+      return { text: 'Cancelled', variant: 'destructive' as const }
+    case 'pending':
+    default:
+      return { text: 'Unpaid', variant: 'destructive' as const }
   }
 }
 
@@ -218,7 +242,7 @@ export default function AppointmentsPage() {
               <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
             </div>
           ) : (
-            <div className="grid gap-4">
+            <div className="bg-white rounded-lg border shadow-sm overflow-hidden">
               {appointments.length === 0 ? (
                 <div className="text-center py-12">
                   <CalendarX className="h-12 w-12 text-gray-300 mx-auto mb-3" />
@@ -228,54 +252,82 @@ export default function AppointmentsPage() {
                   </Link>
                 </div>
               ) : (
-                appointments.map((appointment) => (
-                  <Card key={appointment.id} className="hover:shadow-md transition-shadow">
-                    <CardContent className="p-6">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                          <div className="p-3 rounded-full bg-blue-100">
-                            <Calendar className="h-6 w-6 text-blue-600" />
-                          </div>
-                          <div>
-                            <div className="flex items-center gap-3 mb-1">
-                              <h3 className="font-semibold text-lg">{appointment.patient.name}</h3>
-                              <Badge variant="secondary">{appointment.appointmentNumber}</Badge>
-                              <Badge variant="outline">Token #{appointment.tokenNumber}</Badge>
-                            </div>
-                            <div className="flex items-center gap-6 text-sm text-gray-600">
-                              <div className="flex items-center gap-1">
-                                <User className="h-4 w-4" />
-                                {appointment.patient.uhid}
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="border-b bg-slate-50 text-slate-600 text-xs font-semibold uppercase tracking-wider">
+                        <th className="p-4">Token</th>
+                        <th className="p-4">Patient</th>
+                        <th className="p-4">Doctor & Department</th>
+                        <th className="p-4">Date & Time</th>
+                        <th className="p-4">Appt Status</th>
+                        <th className="p-4">Bill Status</th>
+                        <th className="p-4 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 text-sm text-slate-700">
+                      {appointments.map((appointment) => {
+                        const billInfo = getBillingBadge(appointment.invoices)
+                        const invoice = appointment.invoices?.[0]
+                        return (
+                          <tr key={appointment.id} className="hover:bg-slate-50/50 transition-colors">
+                            <td className="p-4 font-bold text-slate-900">#{appointment.tokenNumber}</td>
+                            <td className="p-4">
+                              <div className="font-semibold text-slate-900">{appointment.patient.name}</div>
+                              <div className="text-xs text-slate-500">{appointment.patient.uhid}</div>
+                            </td>
+                            <td className="p-4">
+                              <div className="font-medium text-slate-900">Dr. {appointment.doctor.user.name}</div>
+                              <div className="text-xs text-slate-500">{appointment.department.name}</div>
+                            </td>
+                            <td className="p-4">
+                              <div>{new Date(appointment.date).toLocaleDateString()}</div>
+                              <div className="text-xs text-slate-500">{appointment.time}</div>
+                            </td>
+                            <td className="p-4">
+                              <Badge variant={getStatusColor(appointment.status) as any}>
+                                {appointment.status.replace('_', ' ')}
+                              </Badge>
+                            </td>
+                            <td className="p-4">
+                              <Badge variant={billInfo.variant}>
+                                {billInfo.text}
+                              </Badge>
+                            </td>
+                            <td className="p-4 text-right">
+                              <div className="flex gap-2 justify-end items-center">
+                                {appointment.status === 'completed' && (
+                                  <>
+                                    {invoice ? (
+                                      <Link href={`/billing/${invoice.id}/receipt`}>
+                                        <Button size="sm" variant="outline" className="h-8 text-xs font-semibold flex items-center gap-1">
+                                          <Receipt className="h-3.5 w-3.5" /> Receipt
+                                        </Button>
+                                      </Link>
+                                    ) : (
+                                      <Link href={`/billing/visit/${appointment.id}`}>
+                                        <Button size="sm" className="h-8 text-xs font-semibold bg-blue-600 text-white hover:bg-blue-700 flex items-center gap-1">
+                                          <Receipt className="h-3.5 w-3.5" /> Bill
+                                        </Button>
+                                      </Link>
+                                    )}
+                                  </>
+                                )}
+                                {(appointment.status === 'scheduled' || appointment.status === 'waiting') && (
+                                  <Link href={`/appointments/${appointment.id}/edit`}>
+                                    <Button variant="ghost" size="sm" className="h-8 text-xs">
+                                      <Edit className="mr-1 h-3 w-3" /> Edit
+                                    </Button>
+                                  </Link>
+                                )}
                               </div>
-                              <div className="flex items-center gap-1">
-                                <Stethoscope className="h-4 w-4" />
-                                Dr. {appointment.doctor.user.name}
-                              </div>
-                              <div>{appointment.department.name}</div>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <div className="flex items-center gap-2 mb-2">
-                            <Clock className="h-4 w-4 text-gray-600" />
-                            <span className="font-medium">{appointment.time}</span>
-                          </div>
-                          <p className="text-sm text-gray-600 mb-2">{new Date(appointment.date).toLocaleDateString()}</p>
-                          <Badge variant={getStatusColor(appointment.status) as any}>
-                            {appointment.status.replace('_', ' ')}
-                          </Badge>
-                          {(appointment.status === 'scheduled' || appointment.status === 'waiting') && (
-                            <Link href={`/appointments/${appointment.id}/edit`}>
-                              <Button variant="ghost" size="sm" className="mt-2 block ml-auto">
-                                <Edit className="mr-1 h-3 w-3" /> Edit
-                              </Button>
-                            </Link>
-                          )}
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
               )}
             </div>
           )}

@@ -17,6 +17,7 @@ const consultationSchema = z.object({
   weight: z.union([z.number(), z.string()]).optional().transform(v => v === '' || v === undefined ? undefined : parseFloat(String(v))),
   height: z.union([z.number(), z.string()]).optional().transform(v => v === '' || v === undefined ? undefined : parseFloat(String(v))),
   clinicalNotes: z.string().optional().or(z.literal("")),
+  markComplete: z.boolean().optional(),
 })
 
 export async function GET(request: NextRequest) {
@@ -56,7 +57,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Validation failed", details: parsed.error.issues }, { status: 400 })
     }
 
-    const { appointmentId, patientId, doctorId, ...data } = parsed.data
+    const { appointmentId, patientId, doctorId, markComplete, ...data } = parsed.data
 
     const consultationData: any = {
       patientId,
@@ -83,6 +84,14 @@ export async function POST(request: NextRequest) {
         doctor: { include: { user: true } },
       },
     })
+
+    // If markComplete is requested, update appointment status
+    if (markComplete && appointmentId) {
+      await prisma.appointment.update({
+        where: { id: appointmentId },
+        data: { status: "completed" },
+      })
+    }
 
     // Save vitals back to patient record
     if (patientId) {

@@ -55,6 +55,7 @@ const sections = [
     roles: ['nurse'] as UserRole[],
     items: [
       { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+      { name: 'OPD Billing', href: '/opd/billing-queue', icon: DollarSign },
       { name: 'IPD Admissions', href: '/ipd', icon: BedDouble },
       { name: 'Bed Dashboard', href: '/wards/beds', icon: BedDouble },
       { name: 'Patient List', href: '/patients', icon: Users },

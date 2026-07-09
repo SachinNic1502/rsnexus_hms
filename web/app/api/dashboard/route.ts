@@ -83,6 +83,8 @@ export async function GET(request: NextRequest) {
         occupiedBeds,
         roundsLoggedToday,
         recentAdmissions,
+        pendingOpdBills,
+        recentPendingOpdBills,
       ] = await Promise.all([
         prisma.admission.count({ where: { status: "admitted" } }),
         prisma.bed.count({ where: { status: { not: "maintenance" } } }),
@@ -96,6 +98,37 @@ export async function GET(request: NextRequest) {
           orderBy: { admissionDate: "desc" },
           take: 5,
         }),
+        prisma.appointment.count({
+          where: {
+            status: "completed",
+            isDeleted: false,
+            patient: {
+              admissions: {
+                none: { status: "admitted" }
+              }
+            },
+            invoices: {
+              none: { isDeleted: false }
+            }
+          }
+        }),
+        prisma.appointment.findMany({
+          where: {
+            status: "completed",
+            isDeleted: false,
+            patient: {
+              admissions: {
+                none: { status: "admitted" }
+              }
+            },
+            invoices: {
+              none: { isDeleted: false }
+            }
+          },
+          include: { patient: true, doctor: { include: { user: true } }, department: true },
+          orderBy: { date: "desc" },
+          take: 5,
+        }),
       ])
 
       return NextResponse.json({
@@ -105,6 +138,7 @@ export async function GET(request: NextRequest) {
           totalBeds,
           occupiedBeds,
           roundsLoggedToday,
+          pendingOpdBills,
         },
         recentAdmissions: recentAdmissions.map((a) => ({
           id: a.id,
@@ -113,6 +147,13 @@ export async function GET(request: NextRequest) {
           room: a.room.roomNumber,
           bed: a.bed.bedNumber,
           admittedAt: a.admissionDate,
+        })),
+        recentPendingOpdBills: recentPendingOpdBills.map((apt) => ({
+          id: apt.id,
+          patient: apt.patient.name,
+          doctor: `Dr. ${apt.doctor.user.name}`,
+          department: apt.department.name,
+          time: apt.time,
         })),
       })
     }

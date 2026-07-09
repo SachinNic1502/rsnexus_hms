@@ -35,6 +35,9 @@ export async function GET(request: NextRequest) {
         patient: true,
         doctor: { include: { user: true } },
         department: true,
+        invoices: {
+          where: { isDeleted: false }
+        }
       },
       orderBy: { createdAt: "desc" },
     })

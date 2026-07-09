@@ -59,7 +59,7 @@ export default function ConsultationPage() {
     finally { setLoading(false) }
   }
 
-  const handleSaveConsultation = async () => {
+  const handleSaveConsultation = async (complete = false) => {
     setSaving(true)
     setError('')
     try {
@@ -75,6 +75,7 @@ export default function ConsultationPage() {
           doctorId: doctor.id,
           ...formData,
           ...vitals,
+          markComplete: complete,
         }),
       })
       if (!res.ok) {
@@ -83,6 +84,10 @@ export default function ConsultationPage() {
       }
       const cons = await res.json()
       setConsultationId(cons.id)
+      if (complete) {
+        setConsultationComplete(true)
+        toast('Consultation completed successfully!', 'success')
+      }
       return cons.id
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Error')
@@ -92,10 +97,19 @@ export default function ConsultationPage() {
     }
   }
 
+  const handleFinishCheckup = async () => {
+    if (!formData.chiefComplaint.trim() || !formData.diagnosis.trim()) {
+      setError('Chief Complaint and Diagnosis are required to finish checkup.')
+      toast('Please fill required fields (Chief Complaint and Diagnosis)', 'error')
+      return
+    }
+    await handleSaveConsultation(true)
+  }
+
   const handleSavePrescription = async (medicines: unknown[]) => {
     let cid = consultationId
     if (!cid) {
-      cid = await handleSaveConsultation()
+      cid = await handleSaveConsultation(false)
       if (!cid) return
     }
     setSaving(true)
@@ -139,9 +153,21 @@ export default function ConsultationPage() {
 
   return (
     <div className="p-8">
-      <div className="mb-6">
-        <Link href="/opd"><Button variant="ghost" className="mb-4"><ArrowLeft className="mr-2 h-4 w-4" /> Back to OPD</Button></Link>
-        <h1 className="text-3xl font-bold text-gray-900">Doctor Consultation</h1>
+      <div className="mb-6 flex justify-between items-center flex-wrap gap-4">
+        <div>
+          <Link href="/opd"><Button variant="ghost" className="mb-4"><ArrowLeft className="mr-2 h-4 w-4" /> Back to OPD</Button></Link>
+          <h1 className="text-3xl font-bold text-gray-900">Doctor Consultation</h1>
+        </div>
+        {!consultationComplete && (
+          <Button 
+            onClick={handleFinishCheckup} 
+            disabled={saving} 
+            className="bg-green-600 hover:bg-green-700 text-white font-semibold flex items-center gap-2"
+          >
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
+            Finish Checkup
+          </Button>
+        )}
       </div>
 
       {error && <div className="text-sm text-destructive bg-destructive/10 p-3 rounded-md mb-4">{error}</div>}

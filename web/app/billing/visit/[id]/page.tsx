@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import {
   ArrowLeft, Loader2, CheckCircle, Printer, Plus, Trash2,
-  User, Stethoscope, Calendar, Pill, FileText, DollarSign
+  User, Stethoscope, Calendar, Pill, FileText, DollarSign, AlertCircle
 } from 'lucide-react'
 import Link from 'next/link'
 import { useToast } from '@/components/ui/toast'
@@ -31,6 +31,7 @@ export default function VisitBillingPage() {
   const [consultation, setConsultation] = useState<any>(null)
   const [prescription, setPrescription] = useState<any>(null)
   const [invoice, setInvoice] = useState<any>(null)
+  const [isAdmitted, setIsAdmitted] = useState(false)
   const [error, setError] = useState('')
 
   const [extraCharges, setExtraCharges] = useState<ExtraCharge[]>([])
@@ -61,6 +62,14 @@ export default function VisitBillingPage() {
         if (Array.isArray(invData) && invData.length > 0) {
           setInvoice(invData[0])
         }
+      }
+
+      // Check if patient has active IPD admission
+      const admRes = await fetch('/api/admissions?status=admitted')
+      if (admRes.ok) {
+        const admissions = await admRes.json()
+        const admitted = admissions.some((adm: any) => adm.patientId === apt.patientId)
+        setIsAdmitted(admitted)
       }
     } catch (err: any) {
       setError(err.message)
@@ -250,7 +259,25 @@ export default function VisitBillingPage() {
       )}
 
       {/* Invoice Section */}
-      {invoice ? (
+      {isAdmitted ? (
+        <Card className="mb-6 border-indigo-200 bg-indigo-50">
+          <CardContent className="p-6 flex flex-col items-center text-center">
+            <AlertCircle className="h-12 w-12 text-indigo-600 mb-3 animate-bounce" />
+            <h3 className="text-lg font-semibold text-indigo-800">IPD Admitted Patient</h3>
+            <p className="text-sm text-indigo-700 max-w-md mt-1 mb-4">
+              This patient is currently admitted to the hospital. All consultation charges and medicines will be consolidated into their final IPD discharge bill.
+            </p>
+            <div className="flex gap-3">
+              <Link href="/ipd">
+                <Button className="bg-indigo-600 hover:bg-indigo-700">Go to IPD Management</Button>
+              </Link>
+              <Link href="/opd/billing-queue">
+                <Button variant="outline">Back to Queue</Button>
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
+      ) : invoice ? (
         <Card className="mb-6 border-green-200">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-green-700">

@@ -21,6 +21,7 @@ import {
   Activity,
   ClipboardCheck,
   BarChart3,
+  Receipt,
 } from 'lucide-react'
 import Link from 'next/link'
 import { useAuth } from '@/lib/auth-context'
@@ -46,6 +47,7 @@ export default function DashboardPage() {
   const [recentPrescriptions, setRecentPrescriptions] = useState<any[]>([])
   const [recentLabOrders, setRecentLabOrders] = useState<any[]>([])
   const [recentPendingInvoices, setRecentPendingInvoices] = useState<any[]>([])
+  const [recentPendingOpdBills, setRecentPendingOpdBills] = useState<any[]>([])
   
   const [loading, setLoading] = useState(true)
 
@@ -65,6 +67,7 @@ export default function DashboardPage() {
         if (data.recentPrescriptions) setRecentPrescriptions(data.recentPrescriptions)
         if (data.recentLabOrders) setRecentLabOrders(data.recentLabOrders)
         if (data.recentPendingInvoices) setRecentPendingInvoices(data.recentPendingInvoices)
+        if (data.recentPendingOpdBills) setRecentPendingOpdBills(data.recentPendingOpdBills)
       }
     } catch (error) {
       toast('Failed to fetch dashboard', 'error')
@@ -142,6 +145,7 @@ export default function DashboardPage() {
 
     // Nurse
     ...(role === 'nurse' ? [
+      { href: '/opd/billing-queue', label: 'OPD Billing Queue', icon: DollarSign },
       { href: '/ipd/admit', label: 'Admit Patient', icon: BedDouble },
       { href: '/ipd', label: 'IPD Management', icon: ClipboardCheck },
       { href: '/wards/beds', label: 'Bed Dashboard', icon: Activity },
@@ -206,7 +210,7 @@ export default function DashboardPage() {
 
     if (role === 'nurse') {
       return (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-gray-600">Admitted Patients</CardTitle>
@@ -233,6 +237,15 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold">{stats?.roundsLoggedToday || 0}</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-gray-600">OPD Bills Pending</CardTitle>
+              <div className="p-2 rounded-lg bg-amber-100"><DollarSign className="h-5 w-5 text-amber-600" /></div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold">{stats?.pendingOpdBills || 0}</div>
             </CardContent>
           </Card>
         </div>
@@ -466,34 +479,70 @@ export default function DashboardPage() {
 
     if (role === 'nurse') {
       return (
-        <Card>
-          <CardHeader>
-            <CardTitle>Current Ward Admissions</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {recentAdmissions.length === 0 ? (
-                <p className="text-sm text-gray-500 text-center py-4">No active admissions</p>
-              ) : (
-                recentAdmissions.map((a) => (
-                  <div key={a.id} className="flex items-center justify-between p-3 rounded-lg border hover:bg-gray-50 transition-colors">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 rounded-full bg-green-100"><BedDouble className="h-4 w-4 text-green-600" /></div>
-                      <div>
-                        <p className="font-medium text-sm">{a.patient}</p>
-                        <p className="text-xs text-gray-600">{a.ward} - Room {a.room}, Bed {a.bed}</p>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Current Ward Admissions</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {recentAdmissions.length === 0 ? (
+                  <p className="text-sm text-gray-500 text-center py-4">No active admissions</p>
+                ) : (
+                  recentAdmissions.map((a) => (
+                    <div key={a.id} className="flex items-center justify-between p-3 rounded-lg border hover:bg-gray-50 transition-colors">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 rounded-full bg-green-100"><BedDouble className="h-4 w-4 text-green-600" /></div>
+                        <div>
+                          <p className="font-medium text-sm">{a.patient}</p>
+                          <p className="text-xs text-gray-600">{a.ward} - Room {a.room}, Bed {a.bed}</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <Badge variant="success">Admitted</Badge>
+                        <p className="text-xs text-gray-500 mt-1">{new Date(a.admittedAt).toLocaleDateString()}</p>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <Badge variant="success">Admitted</Badge>
-                      <p className="text-xs text-gray-500 mt-1">{new Date(a.admittedAt).toLocaleDateString()}</p>
+                  ))
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle>Pending OPD Billing Queue</CardTitle>
+              <Link href="/opd/billing-queue">
+                <Button variant="ghost" size="sm" className="text-xs">View All</Button>
+              </Link>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {recentPendingOpdBills.length === 0 ? (
+                  <p className="text-sm text-gray-500 text-center py-4">No pending OPD bills</p>
+                ) : (
+                  recentPendingOpdBills.map((apt: any) => (
+                    <div key={apt.id} className="flex items-center justify-between p-3 rounded-lg border hover:bg-gray-50 transition-colors">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 rounded-full bg-amber-100"><Receipt className="h-4 w-4 text-amber-600" /></div>
+                        <div>
+                          <p className="font-medium text-sm">{apt.patient}</p>
+                          <p className="text-xs text-gray-600">{apt.doctor} · {apt.department}</p>
+                        </div>
+                      </div>
+                      <div className="text-right flex flex-col items-end gap-1">
+                        <p className="text-xs text-gray-500">{apt.time}</p>
+                        <Link href={`/billing/visit/${apt.id}`}>
+                          <Button size="sm" className="h-7 px-2.5 text-xs bg-blue-600 text-white font-semibold">Bill</Button>
+                        </Link>
+                      </div>
                     </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </CardContent>
-        </Card>
+                  ))
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       )
     }
 

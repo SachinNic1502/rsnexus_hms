@@ -43,6 +43,10 @@ const receptionistRoutes = [
   "/api/appointments",
 ]
 
+const opdRoutes = [
+  "/api/opd",
+]
+
 function getRouteRole(pathname: string): string | null {
   if (pathname.startsWith("/api/invoices/auto-opd") || pathname.startsWith("/api/invoices/auto-ipd")) {
     return "billing_auto"
@@ -75,6 +79,9 @@ function getRouteRole(pathname: string): string | null {
   for (const route of receptionistRoutes) {
     if (pathname.startsWith(route)) return "receptionist"
   }
+  for (const route of opdRoutes) {
+    if (pathname.startsWith(route)) return "opd"
+  }
   return null
 }
 
@@ -83,10 +90,11 @@ const doctorNurseRoles = ["super_admin", "hospital_admin", "doctor", "nurse"]
 const doctorPharmacistRoles = ["super_admin", "hospital_admin", "doctor", "pharmacist"]
 const nurseRoles = ["super_admin", "hospital_admin", "nurse", "doctor"]
 const labRoles = ["super_admin", "hospital_admin", "doctor", "lab_technician"]
-const billingRoles = ["super_admin", "hospital_admin", "billing_staff", "receptionist"]
+const billingRoles = ["super_admin", "hospital_admin", "billing_staff", "receptionist", "nurse"]
 const billingAutoRoles = ["super_admin", "hospital_admin", "billing_staff", "receptionist", "nurse", "doctor"]
 const reportsRoles = ["super_admin", "hospital_admin"]
-const receptionistRoles = ["super_admin", "hospital_admin", "receptionist", "doctor"]
+const receptionistRoles = ["super_admin", "hospital_admin", "receptionist", "doctor", "nurse"]
+const opdRoles = ["super_admin", "hospital_admin", "doctor", "nurse", "receptionist", "billing_staff"]
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
@@ -141,6 +149,7 @@ export async function middleware(request: NextRequest) {
       else if (requiredRole === "billing_auto") allowed = billingAutoRoles.includes(userRole)
       else if (requiredRole === "reports") allowed = reportsRoles.includes(userRole)
       else if (requiredRole === "receptionist") allowed = receptionistRoles.includes(userRole)
+      else if (requiredRole === "opd") allowed = opdRoles.includes(userRole)
       
       if (!allowed) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 })

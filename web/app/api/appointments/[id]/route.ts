@@ -23,7 +23,11 @@ export async function GET(
         patient: true,
         doctor: { include: { user: true } },
         department: true,
-        consultation: true,
+        consultation: {
+          include: {
+            prescription: { include: { medicines: true } },
+          },
+        },
       },
     })
 

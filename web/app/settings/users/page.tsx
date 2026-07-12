@@ -13,6 +13,8 @@ import { ArrowLeft, Plus, Loader2, Edit, Trash2, Users } from 'lucide-react'
 import Link from 'next/link'
 import { useToast } from '@/components/ui/toast'
 import { ConfirmDialog } from '@/components/ui/dialog'
+import { RoleGuard } from '@/components/role-guard'
+import { useAuth } from '@/lib/auth-context'
 
 interface User { id: string; name: string; email: string; role: string; isActive: boolean; createdAt: string }
 type UserForm = { name: string; email: string; password?: string; role: 'super_admin' | 'hospital_admin' | 'receptionist' | 'doctor' | 'nurse' | 'lab_technician' | 'pharmacist' | 'billing_staff'; isActive?: boolean }
@@ -34,6 +36,7 @@ export default function UsersPage() {
   const [saving, setSaving] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<User | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const { hasRole } = useAuth()
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm<UserForm>({
     resolver: zodResolver(userSchema),
@@ -76,6 +79,7 @@ export default function UsersPage() {
   }
 
   return (
+    <RoleGuard allowedRoles={['super_admin', 'hospital_admin']}>
     <div className="p-8">
       <div className="mb-6">
         <Link href="/settings"><Button variant="ghost" className="mb-4"><ArrowLeft className="mr-2 h-4 w-4" /> Back to Settings</Button></Link>
@@ -137,5 +141,6 @@ export default function UsersPage() {
 
       <ConfirmDialog open={!!deleteTarget} onClose={() => setDeleteTarget(null)} onConfirm={handleDelete} title="Delete User" message={`Delete "${deleteTarget?.name}"? This cannot be undone.`} confirmLabel="Delete" loading={deleting} />
     </div>
+    </RoleGuard>
   )
 }

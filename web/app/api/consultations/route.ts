@@ -87,10 +87,18 @@ export async function POST(request: NextRequest) {
 
     // If markComplete is requested, update appointment status
     if (markComplete && appointmentId) {
-      await prisma.appointment.update({
-        where: { id: appointmentId },
-        data: { status: "completed" },
-      })
+      try {
+        await prisma.appointment.update({
+          where: { id: appointmentId },
+          data: { status: "completed" },
+        })
+      } catch (aptErr) {
+        console.error("Failed to mark appointment as completed:", aptErr)
+        return NextResponse.json(
+          { error: "Consultation saved but failed to update appointment status. Please update the appointment manually." },
+          { status: 500 }
+        )
+      }
     }
 
     // Save vitals back to patient record

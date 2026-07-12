@@ -8,10 +8,13 @@ import { Button } from '@/components/ui/button'
 import { ArrowLeft, Save, Loader2, Plus, Trash2 } from 'lucide-react'
 import Link from 'next/link'
 import { useToast } from '@/components/ui/toast'
+import { RoleGuard } from '@/components/role-guard'
+import { useAuth } from '@/lib/auth-context'
 
 export default function NewLabOrderPage() {
   const router = useRouter()
   const { toast } = useToast()
+  const { hasRole } = useAuth()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [patientSearch, setPatientSearch] = useState('')
@@ -63,6 +66,7 @@ export default function NewLabOrderPage() {
   }
 
   return (
+    <RoleGuard allowedRoles={['super_admin', 'hospital_admin', 'doctor']}>
     <div className="p-8">
       <div className="mb-8">
         <Link href="/lab"><Button variant="ghost" className="mb-4"><ArrowLeft className="mr-2 h-4 w-4" /> Back to Lab</Button></Link>
@@ -126,5 +130,6 @@ export default function NewLabOrderPage() {
         </CardContent>
       </Card>
     </div>
+    </RoleGuard>
   )
 }

@@ -12,6 +12,8 @@ import { ArrowLeft, Plus, Loader2, Edit, Trash2, Stethoscope } from 'lucide-reac
 import Link from 'next/link'
 import { useToast } from '@/components/ui/toast'
 import { ConfirmDialog } from '@/components/ui/dialog'
+import { RoleGuard } from '@/components/role-guard'
+import { useAuth } from '@/lib/auth-context'
 
 interface Service { id: string; name: string; category: string; price: number; description: string | null; isActive: boolean }
 type ServiceForm = { name: string; category: string; price: number; description?: string }
@@ -26,6 +28,7 @@ export default function ServicesPage() {
   const [deleteTarget, setDeleteTarget] = useState<Service | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [search, setSearch] = useState('')
+  const { hasRole } = useAuth()
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm<ServiceForm>({
     resolver: zodResolver(serviceSchema),
@@ -71,6 +74,7 @@ export default function ServicesPage() {
   const categories = [...new Set(services.map(s => s.category))]
 
   return (
+    <RoleGuard allowedRoles={['super_admin', 'hospital_admin', 'billing_staff']}>
     <div className="p-8">
       <div className="mb-6">
         <Link href="/dashboard"><Button variant="ghost" className="mb-4"><ArrowLeft className="mr-2 h-4 w-4" /> Back</Button></Link>
@@ -134,5 +138,6 @@ export default function ServicesPage() {
 
       <ConfirmDialog open={!!deleteTarget} onClose={() => setDeleteTarget(null)} onConfirm={handleDelete} title="Delete Service" message={`Delete "${deleteTarget?.name}"? This cannot be undone.`} confirmLabel="Delete" loading={deleting} />
     </div>
+    </RoleGuard>
   )
 }

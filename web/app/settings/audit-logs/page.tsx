@@ -7,6 +7,8 @@ import { Input } from '@/components/ui/input'
 import { ArrowLeft, Loader2, ClipboardList, Search, RefreshCw } from 'lucide-react'
 import Link from 'next/link'
 import { useToast } from '@/components/ui/toast'
+import { RoleGuard } from '@/components/role-guard'
+import { useAuth } from '@/lib/auth-context'
 
 interface AuditLog {
   id: string
@@ -23,6 +25,7 @@ export default function AuditLogsPage() {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [actionFilter, setActionFilter] = useState('all')
+  const { hasRole } = useAuth()
 
   useEffect(() => {
     fetchLogs()
@@ -60,6 +63,7 @@ export default function AuditLogsPage() {
   }
 
   return (
+    <RoleGuard allowedRoles={['super_admin', 'hospital_admin']}>
     <div className="p-8">
       <div className="mb-6 flex justify-between items-center flex-wrap gap-4">
         <div>
@@ -165,5 +169,6 @@ export default function AuditLogsPage() {
         </Card>
       )}
     </div>
+    </RoleGuard>
   )
 }

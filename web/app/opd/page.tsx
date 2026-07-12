@@ -7,6 +7,8 @@ import { Badge } from '@/components/ui/badge'
 import { Stethoscope, Clock, User, ClipboardCheck, Loader2, Receipt, Users } from 'lucide-react'
 import Link from 'next/link'
 import { useToast } from '@/components/ui/toast'
+import { RoleGuard } from '@/components/role-guard'
+import { useAuth } from '@/lib/auth-context'
 
 interface Appointment {
   id: string
@@ -32,6 +34,7 @@ const getStatusColor = (status: string) => {
 
 export default function OPDPage() {
   const { toast } = useToast()
+  const { hasRole } = useAuth()
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [loading, setLoading] = useState(true)
   const [countdown, setCountdown] = useState(30)
@@ -64,15 +67,26 @@ export default function OPDPage() {
   }
 
   const updateStatus = async (id: string, status: string) => {
-    await fetch(`/api/appointments/${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status }),
-    })
+    try {
+      const res = await fetch(`/api/appointments/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        toast(data.error || 'Failed to update status', 'error')
+        return
+      }
+      toast(`Status updated to ${status.replace('_', ' ')}`, 'success')
+    } catch {
+      toast('Failed to update status', 'error')
+    }
     fetchTodayAppointments()
   }
 
   return (
+    <RoleGuard allowedRoles={['super_admin', 'hospital_admin', 'doctor', 'nurse', 'receptionist', 'billing_staff']}>
     <div className="p-8">
       <div className="mb-8 flex justify-between items-center flex-wrap gap-4">
         <div>
@@ -118,20 +132,20 @@ export default function OPDPage() {
                   </div>
                   <div className="flex items-center gap-3">
                     <Badge variant={getStatusColor(apt.status) as "default" | "secondary" | "destructive" | "outline" | "success" | "warning"}>{apt.status.replace('_', ' ')}</Badge>
-                    {apt.status === 'scheduled' && (
+                    {apt.status === 'scheduled' && hasRole(['super_admin', 'hospital_admin', 'nurse', 'receptionist']) && (
                       <Button size="sm" onClick={() => updateStatus(apt.id, 'waiting')}>Check In</Button>
                     )}
-                    {apt.status === 'waiting' && (
+                    {apt.status === 'waiting' && hasRole(['super_admin', 'hospital_admin', 'doctor']) && (
                       <Link href={`/opd/consultation/${apt.id}`}>
                         <Button size="sm"><ClipboardCheck className="mr-1 h-3 w-3" /> Consult</Button>
                       </Link>
                     )}
-                    {apt.status === 'in_progress' && (
+                    {apt.status === 'in_progress' && hasRole(['super_admin', 'hospital_admin', 'doctor']) && (
                       <Link href={`/opd/consultation/${apt.id}`}>
                         <Button size="sm" variant="outline">Continue</Button>
                       </Link>
                     )}
-                    {apt.status === 'completed' && (
+                    {apt.status === 'completed' && hasRole(['super_admin', 'hospital_admin', 'nurse', 'receptionist', 'billing_staff']) && (
                       <Link href={`/billing/visit/${apt.id}`}>
                         <Button size="sm" variant="ghost"><Receipt className="mr-1 h-3 w-3" /> Bill</Button>
                       </Link>
@@ -144,5 +158,6 @@ export default function OPDPage() {
         </div>
       )}
     </div>
+    </RoleGuard>
   )
 }

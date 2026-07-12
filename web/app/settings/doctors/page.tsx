@@ -12,6 +12,8 @@ import { ArrowLeft, Loader2, Edit, CheckCircle, XCircle, Stethoscope, Plus } fro
 import Link from 'next/link'
 import { useToast } from '@/components/ui/toast'
 import { ConfirmDialog } from '@/components/ui/dialog'
+import { RoleGuard } from '@/components/role-guard'
+import { useAuth } from '@/lib/auth-context'
 
 interface Doctor {
   id: string; specialization: string; qualification: string; available: boolean
@@ -39,6 +41,7 @@ export default function DoctorsPage() {
   const [spec, setSpec] = useState('')
   const [deleteTarget, setDeleteTarget] = useState<Doctor | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const { hasRole } = useAuth()
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm<DoctorForm>({
     resolver: zodResolver(doctorCreateSchema) as unknown as Resolver<DoctorForm>,
@@ -107,6 +110,7 @@ export default function DoctorsPage() {
   }
 
   return (
+    <RoleGuard allowedRoles={['super_admin', 'hospital_admin']}>
     <div className="p-8">
       <div className="mb-6">
         <Link href="/settings"><Button variant="ghost" className="mb-4"><ArrowLeft className="mr-2 h-4 w-4" /> Back to Settings</Button></Link>
@@ -221,5 +225,6 @@ export default function DoctorsPage() {
         </div>
       )}
     </div>
+    </RoleGuard>
   )
 }

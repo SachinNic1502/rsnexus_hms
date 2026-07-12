@@ -9,6 +9,7 @@ import { Search, FileText, Pill, Calendar, Loader2, User, Eye } from 'lucide-rea
 import Link from 'next/link'
 import { useToast } from '@/components/ui/toast'
 import { useAuth } from '@/lib/auth-context'
+import { RoleGuard } from '@/components/role-guard'
 
 interface PrescriptionList {
   id: string
@@ -20,7 +21,7 @@ interface PrescriptionList {
 }
 
 export default function PrescriptionsPage() {
-  const { user } = useAuth()
+  const { user, hasRole } = useAuth()
   const { toast } = useToast()
   const [prescriptions, setPrescriptions] = useState<PrescriptionList[]>([])
   const [search, setSearch] = useState('')
@@ -48,6 +49,7 @@ export default function PrescriptionsPage() {
   if (loading) return <div className="flex items-center justify-center h-96"><Loader2 className="h-8 w-8 animate-spin text-gray-400" /></div>
 
   return (
+    <RoleGuard allowedRoles={['super_admin', 'hospital_admin', 'doctor', 'pharmacist', 'nurse']}>
     <div className="p-8">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900">Prescriptions</h1>
@@ -131,5 +133,6 @@ export default function PrescriptionsPage() {
         </div>
       )}
     </div>
+    </RoleGuard>
   )
 }

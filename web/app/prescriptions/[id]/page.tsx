@@ -9,6 +9,8 @@ import { ArrowLeft, Printer, Loader2, Building2, Download } from 'lucide-react'
 import Link from 'next/link'
 import { useToast } from '@/components/ui/toast'
 import { jsPDF } from 'jspdf'
+import { RoleGuard } from '@/components/role-guard'
+import { useAuth } from '@/lib/auth-context'
 import autoTable from 'jspdf-autotable'
 
 interface Prescription {
@@ -23,6 +25,7 @@ interface Prescription {
 export default function PrescriptionPrintPage() {
   const params = useParams()
   const { toast } = useToast()
+  const { hasRole } = useAuth()
   const [prescription, setPrescription] = useState<Prescription | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -122,6 +125,7 @@ export default function PrescriptionPrintPage() {
   if (!prescription) return <div className="p-8 text-center text-red-500">Prescription not found</div>
 
   return (
+    <RoleGuard allowedRoles={['super_admin', 'hospital_admin', 'doctor', 'pharmacist', 'nurse']}>
     <div className="p-8">
       <style>{`
         @media print {
@@ -272,5 +276,6 @@ export default function PrescriptionPrintPage() {
         </CardContent>
       </Card>
     </div>
+    </RoleGuard>
   )
 }

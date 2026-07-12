@@ -4,6 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { ArrowLeft, Calendar, TrendingUp, Users, BedDouble, Activity } from 'lucide-react'
 import Link from 'next/link'
+import { RoleGuard } from '@/components/role-guard'
+import { useAuth } from '@/lib/auth-context'
 
 const reports = [
   { title: 'Daily Report', description: 'Today\'s appointments, admissions, and revenue', href: '/reports/daily', icon: Calendar, color: 'bg-blue-500' },
@@ -14,7 +16,10 @@ const reports = [
 ]
 
 export default function ReportsPage() {
+  const { hasRole } = useAuth()
+
   return (
+    <RoleGuard allowedRoles={['super_admin', 'hospital_admin']}>
     <div className="p-8">
       <div className="mb-6">
         <Link href="/dashboard">
@@ -46,5 +51,6 @@ export default function ReportsPage() {
         ))}
       </div>
     </div>
+    </RoleGuard>
   )
 }

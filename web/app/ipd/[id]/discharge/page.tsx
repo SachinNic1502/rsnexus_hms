@@ -12,6 +12,8 @@ import { Badge } from '@/components/ui/badge'
 import { ArrowLeft, Loader2, FileText, Calendar, AlertTriangle, Plus, Trash2, IndianRupee, Receipt, Stethoscope } from 'lucide-react'
 import Link from 'next/link'
 import { useToast } from '@/components/ui/toast'
+import { RoleGuard } from '@/components/role-guard'
+import { useAuth } from '@/lib/auth-context'
 
 type DischargeForm = { dischargeSummary: string; finalDiagnosis: string; followUpDate?: string }
 
@@ -80,6 +82,7 @@ export default function DischargePage() {
   const params = useParams()
   const router = useRouter()
   const { toast } = useToast()
+  const { hasRole } = useAuth()
   const [admission, setAdmission] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -173,37 +176,39 @@ export default function DischargePage() {
     finally { setSaving(false) }
   }
 
-  if (loading) return <div className="flex items-center justify-center h-96"><Loader2 className="h-8 w-8 animate-spin text-gray-400" /></div>
-  if (!admission) return <div className="p-8 text-center text-red-500">Admission not found</div>
+  if (loading) return <RoleGuard allowedRoles={['super_admin', 'hospital_admin', 'doctor', 'nurse']}><div className="flex items-center justify-center h-96"><Loader2 className="h-8 w-8 animate-spin text-gray-400" /></div></RoleGuard>
+  if (!admission) return <RoleGuard allowedRoles={['super_admin', 'hospital_admin', 'doctor', 'nurse']}><div className="p-8 text-center text-red-500">Admission not found</div></RoleGuard>
   if (createdInvoice) {
     const invId = String(createdInvoice.id)
     const invNumber = String(createdInvoice.invoiceNumber)
     const invTotal = Number(createdInvoice.total)
     return (
-      <div className="p-8">
-        <div className="mb-6">
-          <Link href="/ipd"><Button variant="ghost" className="mb-4"><ArrowLeft className="mr-2 h-4 w-4" /> Back to IPD</Button></Link>
+      <RoleGuard allowedRoles={['super_admin', 'hospital_admin', 'doctor', 'nurse']}>
+        <div className="p-8">
+          <div className="mb-6">
+            <Link href="/ipd"><Button variant="ghost" className="mb-4"><ArrowLeft className="mr-2 h-4 w-4" /> Back to IPD</Button></Link>
+          </div>
+          <Card className="max-w-md mx-auto border-green-200 bg-green-50">
+            <CardContent className="p-8 text-center">
+              <Receipt className="h-16 w-16 text-green-600 mx-auto mb-4" />
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">Patient Discharged!</h2>
+              <p className="text-gray-600 mb-4">Invoice {invNumber} generated</p>
+              <p className="text-3xl font-bold text-green-700 mb-6">₹{invTotal.toLocaleString()}</p>
+              <div className="flex gap-3 justify-center">
+                <Link href={`/billing/${invId}/payment`}>
+                  <Button>Pay Now</Button>
+                </Link>
+                <Link href={`/billing/${invId}/receipt`}>
+                  <Button variant="outline"><FileText className="mr-2 h-4 w-4" /> Receipt</Button>
+                </Link>
+                <Link href="/ipd">
+                  <Button variant="ghost">IPD List</Button>
+                </Link>
+              </div>
+            </CardContent>
+          </Card>
         </div>
-        <Card className="max-w-md mx-auto border-green-200 bg-green-50">
-          <CardContent className="p-8 text-center">
-            <Receipt className="h-16 w-16 text-green-600 mx-auto mb-4" />
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">Patient Discharged!</h2>
-            <p className="text-gray-600 mb-4">Invoice {invNumber} generated</p>
-            <p className="text-3xl font-bold text-green-700 mb-6">₹{invTotal.toLocaleString()}</p>
-            <div className="flex gap-3 justify-center">
-              <Link href={`/billing/${invId}/payment`}>
-                <Button>Pay Now</Button>
-              </Link>
-              <Link href={`/billing/${invId}/receipt`}>
-                <Button variant="outline"><FileText className="mr-2 h-4 w-4" /> Receipt</Button>
-              </Link>
-              <Link href="/ipd">
-                <Button variant="ghost">IPD List</Button>
-              </Link>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      </RoleGuard>
     )
   }
 
@@ -212,116 +217,118 @@ export default function DischargePage() {
   const extraChargesTotal = extraCharges.reduce((sum, c) => sum + c.quantity * c.unitPrice, 0)
 
   return (
-    <div className="p-8">
-      <div className="mb-6">
-        <Link href={`/ipd/${params.id}`}><Button variant="ghost" className="mb-4"><ArrowLeft className="mr-2 h-4 w-4" /> Back to Admission</Button></Link>
-        <h1 className="text-3xl font-bold text-gray-900">Discharge Patient</h1>
-        <p className="text-gray-600 mt-1">{admission.patient.name} | Admitted {new Date(admission.admissionDate).toLocaleDateString()}</p>
-      </div>
+    <RoleGuard allowedRoles={['super_admin', 'hospital_admin', 'doctor', 'nurse']}>
+      <div className="p-8">
+        <div className="mb-6">
+          <Link href={`/ipd/${params.id}`}><Button variant="ghost" className="mb-4"><ArrowLeft className="mr-2 h-4 w-4" /> Back to Admission</Button></Link>
+          <h1 className="text-3xl font-bold text-gray-900">Discharge Patient</h1>
+          <p className="text-gray-600 mt-1">{admission.patient.name} | Admitted {new Date(admission.admissionDate).toLocaleDateString()}</p>
+        </div>
 
-      <div className="grid grid-cols-3 gap-6">
-        <div className="col-span-2 space-y-6">
-          <Card>
-            <CardHeader><CardTitle className="flex items-center gap-2"><FileText className="h-5 w-5" /> Discharge Summary</CardTitle></CardHeader>
-            <CardContent>
-              <form onSubmit={handleSubmit(handleDischarge)} className="space-y-4">
-                <div><label className="text-sm font-medium">Final Diagnosis *</label><textarea {...register('finalDiagnosis')} rows={3} className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm" placeholder="Final diagnosis after treatment..." />{errors.finalDiagnosis && <p className="text-xs text-red-500 mt-1">{errors.finalDiagnosis.message}</p>}</div>
-                <div><label className="text-sm font-medium">Discharge Summary *</label><textarea {...register('dischargeSummary')} rows={5} className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm" placeholder="Treatment summary, condition at discharge, medications..." />{errors.dischargeSummary && <p className="text-xs text-red-500 mt-1">{errors.dischargeSummary.message}</p>}</div>
-                <div><label className="text-sm font-medium flex items-center gap-1"><Calendar className="h-3 w-3" /> Follow-up Date</label><input type="date" {...register('followUpDate')} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" /></div>
+        <div className="grid grid-cols-3 gap-6">
+          <div className="col-span-2 space-y-6">
+            <Card>
+              <CardHeader><CardTitle className="flex items-center gap-2"><FileText className="h-5 w-5" /> Discharge Summary</CardTitle></CardHeader>
+              <CardContent>
+                <form onSubmit={handleSubmit(handleDischarge)} className="space-y-4">
+                  <div><label className="text-sm font-medium">Final Diagnosis *</label><textarea {...register('finalDiagnosis')} rows={3} className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm" placeholder="Final diagnosis after treatment..." />{errors.finalDiagnosis && <p className="text-xs text-red-500 mt-1">{errors.finalDiagnosis.message}</p>}</div>
+                  <div><label className="text-sm font-medium">Discharge Summary *</label><textarea {...register('dischargeSummary')} rows={5} className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm" placeholder="Treatment summary, condition at discharge, medications..." />{errors.dischargeSummary && <p className="text-xs text-red-500 mt-1">{errors.dischargeSummary.message}</p>}</div>
+                  <div><label className="text-sm font-medium flex items-center gap-1"><Calendar className="h-3 w-3" /> Follow-up Date</label><input type="date" {...register('followUpDate')} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" /></div>
 
-                {/* Extra Charges */}
-                <div className="pt-4 border-t">
-                  <div className="flex items-center justify-between mb-3">
-                    <label className="text-sm font-medium flex items-center gap-1"><IndianRupee className="h-3 w-3" /> Additional Charges</label>
-                    <Button type="button" size="sm" variant="outline" onClick={addCharge}><Plus className="mr-1 h-3 w-3" /> Add</Button>
-                  </div>
-
-                  {/* Service Catalog */}
-                  <div className="mb-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Stethoscope className="h-4 w-4 text-blue-500" />
-                      <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">All Services ({services.length})</span>
+                  {/* Extra Charges */}
+                  <div className="pt-4 border-t">
+                    <div className="flex items-center justify-between mb-3">
+                      <label className="text-sm font-medium flex items-center gap-1"><IndianRupee className="h-3 w-3" /> Additional Charges</label>
+                      <Button type="button" size="sm" variant="outline" onClick={addCharge}><Plus className="mr-1 h-3 w-3" /> Add</Button>
                     </div>
-                    <Input placeholder="Search services..." value={serviceSearch} onChange={e => setServiceSearch(e.target.value)} className="h-8 text-xs" />
-                    {filteredServices.length > 0 && (
-                      <div className="mt-2 flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
-                        {filteredServices.map(s => (
-                          <button key={s.id} type="button" onClick={() => addServiceAsCharge(s)}
-                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 hover:bg-blue-100 hover:text-blue-700 border border-gray-200 hover:border-blue-300 transition-colors cursor-pointer">
-                            <span>{s.name}</span>
-                            <span className="text-gray-400">₹{s.price}</span>
-                          </button>
+
+                    {/* Service Catalog */}
+                    <div className="mb-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Stethoscope className="h-4 w-4 text-blue-500" />
+                        <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">All Services ({services.length})</span>
+                      </div>
+                      <Input placeholder="Search services..." value={serviceSearch} onChange={e => setServiceSearch(e.target.value)} className="h-8 text-xs" />
+                      {filteredServices.length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
+                          {filteredServices.map(s => (
+                            <button key={s.id} type="button" onClick={() => addServiceAsCharge(s)}
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 hover:bg-blue-100 hover:text-blue-700 border border-gray-200 hover:border-blue-300 transition-colors cursor-pointer">
+                              <span>{s.name}</span>
+                              <span className="text-gray-400">₹{s.price}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Charge Rows */}
+                    {extraCharges.length > 0 && (
+                      <div className="space-y-2">
+                        {extraCharges.map((charge, i) => (
+                          <div key={i} className="grid grid-cols-12 gap-2 items-end">
+                            <div className="col-span-5">
+                              <ServiceAutocomplete
+                                value={charge.description}
+                                onChange={v => updateCharge(i, 'description', v)}
+                                onSelect={svc => {
+                                  const updated = [...extraCharges]
+                                  updated[i] = { description: svc.name, quantity: updated[i].quantity, unitPrice: svc.price, type: 'service' }
+                                  setExtraCharges(updated)
+                                }}
+                                services={services}
+                              />
+                            </div>
+                            <div className="col-span-2"><Input type="number" min="1" value={charge.quantity} onChange={e => updateCharge(i, 'quantity', e.target.value)} className="h-9" /></div>
+                            <div className="col-span-2"><Input type="number" step="0.01" value={charge.unitPrice} onChange={e => updateCharge(i, 'unitPrice', e.target.value)} className="h-9" /></div>
+                            <div className="col-span-2"><p className="font-medium h-9 flex items-center text-sm">₹{(charge.quantity * charge.unitPrice).toFixed(2)}</p></div>
+                            <div className="col-span-1"><Button type="button" variant="ghost" size="sm" onClick={() => removeCharge(i)}><Trash2 className="h-4 w-4 text-red-500" /></Button></div>
+                          </div>
                         ))}
                       </div>
                     )}
                   </div>
 
-                  {/* Charge Rows */}
-                  {extraCharges.length > 0 && (
-                    <div className="space-y-2">
-                      {extraCharges.map((charge, i) => (
-                        <div key={i} className="grid grid-cols-12 gap-2 items-end">
-                          <div className="col-span-5">
-                            <ServiceAutocomplete
-                              value={charge.description}
-                              onChange={v => updateCharge(i, 'description', v)}
-                              onSelect={svc => {
-                                const updated = [...extraCharges]
-                                updated[i] = { description: svc.name, quantity: updated[i].quantity, unitPrice: svc.price, type: 'service' }
-                                setExtraCharges(updated)
-                              }}
-                              services={services}
-                            />
-                          </div>
-                          <div className="col-span-2"><Input type="number" min="1" value={charge.quantity} onChange={e => updateCharge(i, 'quantity', e.target.value)} className="h-9" /></div>
-                          <div className="col-span-2"><Input type="number" step="0.01" value={charge.unitPrice} onChange={e => updateCharge(i, 'unitPrice', e.target.value)} className="h-9" /></div>
-                          <div className="col-span-2"><p className="font-medium h-9 flex items-center text-sm">₹{(charge.quantity * charge.unitPrice).toFixed(2)}</p></div>
-                          <div className="col-span-1"><Button type="button" variant="ghost" size="sm" onClick={() => removeCharge(i)}><Trash2 className="h-4 w-4 text-red-500" /></Button></div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                  <div className="flex gap-2 pt-2">
+                    <Button type="submit" disabled={saving}>{saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Discharge & Generate Bill'}</Button>
+                  </div>
+                </form>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="space-y-4">
+            <Card>
+              <CardHeader><CardTitle>Patient Summary</CardTitle></CardHeader>
+              <CardContent className="space-y-3 text-sm">
+                <div className="flex justify-between"><span className="text-gray-600">Patient</span><span className="font-medium">{admission.patient.name}</span></div>
+                <div className="flex justify-between"><span className="text-gray-600">UHID</span><span>{admission.patient.uhid}</span></div>
+                <div className="flex justify-between"><span className="text-gray-600">Doctor</span><span>Dr. {admission.doctor.user.name}</span></div>
+                <div className="flex justify-between"><span className="text-gray-600">Ward</span><span>{admission.ward.name}</span></div>
+                <div className="flex justify-between"><span className="text-gray-600">Room/Bed</span><span>{admission.room.roomNumber} / {admission.bed.bedNumber}</span></div>
+                <hr />
+                <div className="flex justify-between"><span className="text-gray-600">Days Admitted</span><span className="font-medium">{daysAdmitted}</span></div>
+                <div className="flex justify-between"><span className="text-gray-600">Room Rate</span><span>₹{admission.room.chargesPerDay}/day</span></div>
+                <div className="flex justify-between"><span className="text-gray-600">Room Charges</span><span className="font-medium">₹{estimatedRoomCharges.toLocaleString()}</span></div>
+                <div className="flex justify-between"><span className="text-gray-600">Daily Rounds</span><span>{admission.dailyRounds?.length || 0}</span></div>
+                {extraChargesTotal > 0 && <div className="flex justify-between"><span className="text-gray-600">Extra Charges</span><span className="font-medium">₹{extraChargesTotal.toLocaleString()}</span></div>}
+                <hr />
+                <div className="flex justify-between font-bold text-lg"><span>Est. Total</span><span className="text-green-600">₹{(estimatedRoomCharges + extraChargesTotal).toLocaleString()}</span></div>
+              </CardContent>
+            </Card>
+
+            <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="h-5 w-5 text-blue-600 mt-0.5" />
+                <div className="text-sm">
+                  <p className="font-medium text-blue-800">Auto-generated Invoice</p>
+                  <p className="text-blue-700">Invoice will be created with room charges, daily round charges, lab tests, and any extra charges added above.</p>
                 </div>
-
-                <div className="flex gap-2 pt-2">
-                  <Button type="submit" disabled={saving}>{saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Discharge & Generate Bill'}</Button>
-                </div>
-              </form>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="space-y-4">
-          <Card>
-            <CardHeader><CardTitle>Patient Summary</CardTitle></CardHeader>
-            <CardContent className="space-y-3 text-sm">
-              <div className="flex justify-between"><span className="text-gray-600">Patient</span><span className="font-medium">{admission.patient.name}</span></div>
-              <div className="flex justify-between"><span className="text-gray-600">UHID</span><span>{admission.patient.uhid}</span></div>
-              <div className="flex justify-between"><span className="text-gray-600">Doctor</span><span>Dr. {admission.doctor.user.name}</span></div>
-              <div className="flex justify-between"><span className="text-gray-600">Ward</span><span>{admission.ward.name}</span></div>
-              <div className="flex justify-between"><span className="text-gray-600">Room/Bed</span><span>{admission.room.roomNumber} / {admission.bed.bedNumber}</span></div>
-              <hr />
-              <div className="flex justify-between"><span className="text-gray-600">Days Admitted</span><span className="font-medium">{daysAdmitted}</span></div>
-              <div className="flex justify-between"><span className="text-gray-600">Room Rate</span><span>₹{admission.room.chargesPerDay}/day</span></div>
-              <div className="flex justify-between"><span className="text-gray-600">Room Charges</span><span className="font-medium">₹{estimatedRoomCharges.toLocaleString()}</span></div>
-              <div className="flex justify-between"><span className="text-gray-600">Daily Rounds</span><span>{admission.dailyRounds?.length || 0}</span></div>
-              {extraChargesTotal > 0 && <div className="flex justify-between"><span className="text-gray-600">Extra Charges</span><span className="font-medium">₹{extraChargesTotal.toLocaleString()}</span></div>}
-              <hr />
-              <div className="flex justify-between font-bold text-lg"><span>Est. Total</span><span className="text-green-600">₹{(estimatedRoomCharges + extraChargesTotal).toLocaleString()}</span></div>
-            </CardContent>
-          </Card>
-
-          <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-            <div className="flex items-start gap-2">
-              <AlertTriangle className="h-5 w-5 text-blue-600 mt-0.5" />
-              <div className="text-sm">
-                <p className="font-medium text-blue-800">Auto-generated Invoice</p>
-                <p className="text-blue-700">Invoice will be created with room charges, daily round charges, lab tests, and any extra charges added above.</p>
               </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
+    </RoleGuard>
   )
 }

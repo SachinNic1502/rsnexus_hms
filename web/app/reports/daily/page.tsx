@@ -8,9 +8,12 @@ import { Input } from '@/components/ui/input'
 import { ArrowLeft, Loader2, Calendar, TrendingUp, DollarSign, Users } from 'lucide-react'
 import Link from 'next/link'
 import { useToast } from '@/components/ui/toast'
+import { RoleGuard } from '@/components/role-guard'
+import { useAuth } from '@/lib/auth-context'
 
 export default function DailyReportPage() {
   const { toast } = useToast()
+  const { hasRole } = useAuth()
   const [date, setDate] = useState(() => new Date().toISOString().split('T')[0])
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
@@ -32,6 +35,7 @@ export default function DailyReportPage() {
   }
 
   return (
+    <RoleGuard allowedRoles={['super_admin', 'hospital_admin']}>
     <div className="p-8">
       <div className="mb-6 flex items-center justify-between no-print print:hidden">
         <div>
@@ -238,5 +242,6 @@ export default function DailyReportPage() {
         </div>
       )}
     </div>
+    </RoleGuard>
   )
 }

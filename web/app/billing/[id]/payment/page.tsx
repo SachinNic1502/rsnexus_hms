@@ -7,6 +7,8 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { ArrowLeft, CreditCard, Loader2, IndianRupee, CheckCircle } from 'lucide-react'
 import Link from 'next/link'
+import { RoleGuard } from '@/components/role-guard'
+import { useAuth } from '@/lib/auth-context'
 
 interface Invoice {
   id: string
@@ -47,6 +49,8 @@ export default function PaymentPage() {
   const [insuranceProvider, setInsuranceProvider] = useState('')
   const [policyNumber, setPolicyNumber] = useState('')
   const [preAuthId, setPreAuthId] = useState('')
+
+  const { hasRole } = useAuth()
 
   useEffect(() => { fetchInvoice() }, [params.id])
 
@@ -95,6 +99,7 @@ export default function PaymentPage() {
 
   if (success) {
     return (
+      <RoleGuard allowedRoles={['super_admin', 'hospital_admin', 'billing_staff', 'receptionist']}>
       <div className="p-8 flex items-center justify-center h-96">
         <div className="text-center">
           <CheckCircle className="h-16 w-16 text-green-500 mx-auto mb-4" />
@@ -102,10 +107,12 @@ export default function PaymentPage() {
           <p className="text-gray-600 mt-2">Redirecting to billing...</p>
         </div>
       </div>
+      </RoleGuard>
     )
   }
 
   return (
+    <RoleGuard allowedRoles={['super_admin', 'hospital_admin', 'billing_staff', 'receptionist']}>
     <div className="p-8">
       <div className="mb-8">
         <Link href="/billing">
@@ -268,5 +275,6 @@ export default function PaymentPage() {
         </div>
       </div>
     </div>
+    </RoleGuard>
   )
 }

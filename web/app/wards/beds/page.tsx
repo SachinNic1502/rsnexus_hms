@@ -7,6 +7,8 @@ import { Badge } from '@/components/ui/badge'
 import { ArrowLeft, Bed, BedDouble, Loader2, AlertTriangle, CheckCircle } from 'lucide-react'
 import Link from 'next/link'
 import { useToast } from '@/components/ui/toast'
+import { RoleGuard } from '@/components/role-guard'
+import { useAuth } from '@/lib/auth-context'
 
 interface BedData {
   id: string
@@ -34,6 +36,7 @@ export default function BedDashboardPage() {
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('all')
   const [wardFilter, setWardFilter] = useState('all')
+  const { hasRole } = useAuth()
 
   useEffect(() => { fetchData() }, [])
 
@@ -87,6 +90,7 @@ export default function BedDashboardPage() {
   const uniqueWards = [...new Set(beds.map((b) => b.room.ward.name))]
 
   return (
+    <RoleGuard allowedRoles={['super_admin', 'hospital_admin', 'doctor', 'nurse']}>
     <div className="p-8">
       <div className="mb-6">
         <Link href="/wards">
@@ -267,5 +271,6 @@ export default function BedDashboardPage() {
         </CardContent>
       </Card>
     </div>
+    </RoleGuard>
   )
 }

@@ -16,6 +16,8 @@ import { useForm, Resolver } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { patientSchema, appointmentSchema } from '@/lib/validations'
 import { useToast } from '@/components/ui/toast'
+import { RoleGuard } from '@/components/role-guard'
+import { useAuth } from '@/lib/auth-context'
 
 type Step = 'search' | 'register' | 'vitals' | 'appointment' | 'confirm'
 
@@ -43,6 +45,7 @@ async function safeFetchJson(url: string): Promise<Record<string, unknown>[]> {
 export default function RegistrationPage() {
   const router = useRouter()
   const { toast } = useToast()
+  const { hasRole } = useAuth()
   const searchRef = useRef<HTMLInputElement>(null)
 
   const [currentStep, setCurrentStep] = useState<Step>('search')
@@ -211,6 +214,7 @@ export default function RegistrationPage() {
   }
 
   return (
+    <RoleGuard allowedRoles={['super_admin', 'hospital_admin', 'receptionist']}>
     <div className="p-8 max-w-5xl mx-auto">
       <div className="mb-6">
         <Link href="/dashboard"><Button variant="ghost" className="mb-2 -ml-2"><ArrowLeft className="mr-2 h-4 w-4" /> Back</Button></Link>
@@ -594,5 +598,6 @@ export default function RegistrationPage() {
         </Card>
       )}
     </div>
+    </RoleGuard>
   )
 }

@@ -8,6 +8,8 @@ import { Clock, User, Loader2, Receipt, Users, CheckCircle, Search, RefreshCw, A
 import Link from 'next/link'
 import { useToast } from '@/components/ui/toast'
 import { Input } from '@/components/ui/input'
+import { RoleGuard } from '@/components/role-guard'
+import { useAuth } from '@/lib/auth-context'
 
 interface PatientQueueItem {
   id: string
@@ -35,6 +37,7 @@ interface PatientQueueItem {
 
 export default function OPDBillingQueuePage() {
   const { toast } = useToast()
+  const { hasRole } = useAuth()
   const [queue, setQueue] = useState<PatientQueueItem[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -91,6 +94,7 @@ export default function OPDBillingQueuePage() {
   })
 
   return (
+    <RoleGuard allowedRoles={['super_admin', 'hospital_admin', 'nurse', 'billing_staff']}>
     <div className="p-8 max-w-7xl mx-auto space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
@@ -269,5 +273,6 @@ export default function OPDBillingQueuePage() {
         </div>
       )}
     </div>
+    </RoleGuard>
   )
 }

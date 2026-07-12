@@ -7,10 +7,13 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { ArrowLeft, Save, Loader2 } from 'lucide-react'
 import Link from 'next/link'
+import { RoleGuard } from '@/components/role-guard'
+import { useAuth } from '@/lib/auth-context'
 
 export default function PatientEditPage() {
   const params = useParams()
   const router = useRouter()
+  const { hasRole } = useAuth()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -75,6 +78,7 @@ export default function PatientEditPage() {
   if (loading) return <div className="flex items-center justify-center h-96"><Loader2 className="h-8 w-8 animate-spin text-gray-400" /></div>
 
   return (
+    <RoleGuard allowedRoles={['super_admin', 'hospital_admin', 'receptionist']}>
     <div className="p-8">
       <div className="mb-8">
         <Link href={`/patients/${params.id}`}>
@@ -159,5 +163,6 @@ export default function PatientEditPage() {
         </CardContent>
       </Card>
     </div>
+    </RoleGuard>
   )
 }

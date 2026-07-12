@@ -11,6 +11,8 @@ import {
   TestTube, DollarSign
 } from 'lucide-react'
 import Link from 'next/link'
+import { RoleGuard } from '@/components/role-guard'
+import { useAuth } from '@/lib/auth-context'
 
 interface PatientData {
   id: string; uhid: string; name: string; mobile: string; gender: string
@@ -111,6 +113,7 @@ function VitalsLineChart({ data, dataKey, label, color, unit, minVal, maxVal }: 
 
 export default function PatientDetailPage() {
   const params = useParams()
+  const { hasRole } = useAuth()
   const [patient, setPatient] = useState<PatientData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -156,6 +159,7 @@ export default function PatientDetailPage() {
   ]
 
   return (
+    <RoleGuard allowedRoles={['super_admin', 'hospital_admin', 'receptionist', 'doctor', 'nurse']}>
     <div className="p-8">
       <div className="mb-6">
         <Link href="/patients">
@@ -548,5 +552,6 @@ export default function PatientDetailPage() {
         </div>
       )}
     </div>
+    </RoleGuard>
   )
 }

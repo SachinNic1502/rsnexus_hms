@@ -7,12 +7,15 @@ import { Button } from '@/components/ui/button'
 import { ArrowLeft, Printer, Loader2, Download } from 'lucide-react'
 import Link from 'next/link'
 import { useToast } from '@/components/ui/toast'
+import { RoleGuard } from '@/components/role-guard'
+import { useAuth } from '@/lib/auth-context'
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
 
 export default function ReceiptPage() {
   const params = useParams()
   const { toast } = useToast()
+  const { hasRole } = useAuth()
   const [invoice, setInvoice] = useState<any>(null)
   const [loading, setLoading] = useState(true)
 
@@ -109,17 +112,20 @@ export default function ReceiptPage() {
 
   if (loading) {
     return (
+      <RoleGuard allowedRoles={['super_admin', 'hospital_admin', 'billing_staff', 'receptionist']}>
       <div className="flex items-center justify-center h-96">
         <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
       </div>
+      </RoleGuard>
     )
   }
 
   if (!invoice) {
-    return <div className="p-8 text-center text-red-500">Invoice not found</div>
+    return <RoleGuard allowedRoles={['super_admin', 'hospital_admin', 'billing_staff', 'receptionist']}><div className="p-8 text-center text-red-500">Invoice not found</div></RoleGuard>
   }
 
   return (
+    <RoleGuard allowedRoles={['super_admin', 'hospital_admin', 'billing_staff', 'receptionist']}>
     <div className="p-8">
       <style>{`
         @media print {
@@ -167,5 +173,6 @@ export default function ReceiptPage() {
         <Receipt invoice={invoice} />
       </div>
     </div>
+    </RoleGuard>
   )
 }

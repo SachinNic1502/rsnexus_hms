@@ -7,6 +7,8 @@ import { Badge } from '@/components/ui/badge'
 import { Plus, TestTube, Loader2, FlaskConical } from 'lucide-react'
 import Link from 'next/link'
 import { useToast } from '@/components/ui/toast'
+import { RoleGuard } from '@/components/role-guard'
+import { useAuth } from '@/lib/auth-context'
 
 interface LabOrder {
   id: string
@@ -21,6 +23,7 @@ interface LabOrder {
 
 export default function LabPage() {
   const { toast } = useToast()
+  const { hasRole } = useAuth()
   const [orders, setOrders] = useState<LabOrder[]>([])
   const [loading, setLoading] = useState(true)
   const [filterStatus, setFilterStatus] = useState('all')
@@ -39,6 +42,7 @@ export default function LabPage() {
   }
 
   return (
+    <RoleGuard allowedRoles={['super_admin', 'hospital_admin', 'doctor', 'lab_technician']}>
     <div className="p-8">
       <div className="flex items-center justify-between mb-8">
         <div>
@@ -103,5 +107,6 @@ export default function LabPage() {
         </div>
       )}
     </div>
+    </RoleGuard>
   )
 }

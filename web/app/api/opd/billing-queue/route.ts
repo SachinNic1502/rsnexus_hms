@@ -3,10 +3,17 @@ import { prisma } from "@/lib/prisma"
 
 export async function GET(request: NextRequest) {
   try {
+    const today = new Date()
+    const dayStart = new Date(today)
+    dayStart.setHours(0, 0, 0, 0)
+    const dayEnd = new Date(today)
+    dayEnd.setHours(23, 59, 59, 999)
+
     const appointments = await prisma.appointment.findMany({
       where: {
         status: "completed",
         isDeleted: false,
+        date: { gte: dayStart, lte: dayEnd },
       },
       include: {
         patient: {

@@ -11,6 +11,8 @@ import { Badge } from '@/components/ui/badge'
 import { ArrowLeft, Plus, Loader2, Edit, Building } from 'lucide-react'
 import Link from 'next/link'
 import { useToast } from '@/components/ui/toast'
+import { RoleGuard } from '@/components/role-guard'
+import { useAuth } from '@/lib/auth-context'
 
 interface Department { id: string; name: string; description: string | null; _count: { doctors: number } }
 type DeptForm = { name: string; description?: string }
@@ -22,6 +24,7 @@ export default function DepartmentsPage() {
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<Department | null>(null)
   const [saving, setSaving] = useState(false)
+  const { hasRole } = useAuth()
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm<DeptForm>({
     resolver: zodResolver(departmentSchema),
@@ -51,6 +54,7 @@ export default function DepartmentsPage() {
   }
 
   return (
+    <RoleGuard allowedRoles={['super_admin', 'hospital_admin']}>
     <div className="p-8">
       <div className="mb-6">
         <Link href="/settings"><Button variant="ghost" className="mb-4"><ArrowLeft className="mr-2 h-4 w-4" /> Back to Settings</Button></Link>
@@ -100,5 +104,6 @@ export default function DepartmentsPage() {
         </div>
       )}
     </div>
+    </RoleGuard>
   )
 }

@@ -10,6 +10,8 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Plus, Loader2, TestTube } from 'lucide-react'
 import { useToast } from '@/components/ui/toast'
+import { RoleGuard } from '@/components/role-guard'
+import { useAuth } from '@/lib/auth-context'
 
 type LabTestForm = { name: string; category: string; price: number; description?: string }
 
@@ -19,6 +21,7 @@ export default function LabCatalogPage() {
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [saving, setSaving] = useState(false)
+  const { hasRole } = useAuth()
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm<LabTestForm>({
     resolver: zodResolver(labTestSchema),
@@ -43,6 +46,7 @@ export default function LabCatalogPage() {
   }
 
   return (
+    <RoleGuard allowedRoles={['super_admin', 'hospital_admin', 'lab_technician']}>
     <div className="p-8">
       <div className="flex items-center justify-between mb-8">
         <div><h1 className="text-3xl font-bold text-gray-900">Lab Test Catalog</h1><p className="text-gray-600 mt-1">Manage available lab tests</p></div>
@@ -96,5 +100,6 @@ export default function LabCatalogPage() {
         </div>
       )}
     </div>
+    </RoleGuard>
   )
 }

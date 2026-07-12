@@ -10,11 +10,14 @@ import { ArrowLeft, Save, Loader2, Thermometer, Activity, Heart, Weight, Ruler, 
 import Link from 'next/link'
 import { useToast } from '@/components/ui/toast'
 import { PrescriptionForm } from '@/components/prescription-form'
+import { RoleGuard } from '@/components/role-guard'
+import { useAuth } from '@/lib/auth-context'
 
 export default function ConsultationPage() {
   const params = useParams()
   const router = useRouter()
   const { toast } = useToast()
+  const { hasRole } = useAuth()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -87,6 +90,12 @@ export default function ConsultationPage() {
       if (complete) {
         setConsultationComplete(true)
         toast('Consultation completed successfully!', 'success')
+        // Re-fetch appointment to reflect updated status and consultation link
+        const updatedRes = await fetch(`/api/appointments/${params.id}`)
+        if (updatedRes.ok) {
+          const updatedApt = await updatedRes.json()
+          setAppointment(updatedApt)
+        }
       }
       return cons.id
     } catch (err: unknown) {
@@ -138,6 +147,13 @@ export default function ConsultationPage() {
 
       setConsultationComplete(true)
       toast('Consultation completed successfully!', 'success')
+
+      // Re-fetch appointment to reflect updated status and consultation link
+      const updatedRes = await fetch(`/api/appointments/${aptData.id}`)
+      if (updatedRes.ok) {
+        const updatedApt = await updatedRes.json()
+        setAppointment(updatedApt)
+      }
     } catch (err: unknown) { setError(err instanceof Error ? err.message : 'Error') }
     finally { setSaving(false) }
   }
@@ -152,6 +168,7 @@ export default function ConsultationPage() {
   const doctorUser = doctor?.user as Record<string, unknown> | undefined
 
   return (
+    <RoleGuard allowedRoles={['super_admin', 'hospital_admin', 'doctor', 'nurse']}>
     <div className="p-8">
       <div className="mb-6 flex justify-between items-center flex-wrap gap-4">
         <div>
@@ -246,5 +263,6 @@ export default function ConsultationPage() {
         <PrescriptionForm onSave={handleSavePrescription} onCancel={() => router.push('/opd')} />
       </div>
     </div>
+    </RoleGuard>
   )
 }

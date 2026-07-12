@@ -7,9 +7,12 @@ import { Badge } from '@/components/ui/badge'
 import { ArrowLeft, Loader2, BedDouble, Users, UserCheck } from 'lucide-react'
 import Link from 'next/link'
 import { useToast } from '@/components/ui/toast'
+import { RoleGuard } from '@/components/role-guard'
+import { useAuth } from '@/lib/auth-context'
 
 export default function BedOccupancyReportPage() {
   const { toast } = useToast()
+  const { hasRole } = useAuth()
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
 
@@ -39,6 +42,7 @@ export default function BedOccupancyReportPage() {
   }
 
   return (
+    <RoleGuard allowedRoles={['super_admin', 'hospital_admin']}>
     <div className="p-8">
       <div className="mb-6 flex items-center justify-between no-print print:hidden">
         <div>
@@ -223,5 +227,6 @@ export default function BedOccupancyReportPage() {
         </div>
       )}
     </div>
+    </RoleGuard>
   )
 }

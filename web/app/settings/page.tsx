@@ -4,6 +4,8 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { ArrowLeft, Users, Building2, Stethoscope, Settings as SettingsIcon, ClipboardList } from 'lucide-react'
 import Link from 'next/link'
+import { RoleGuard } from '@/components/role-guard'
+import { useAuth } from '@/lib/auth-context'
 
 const settingsPages = [
   { title: 'User Management', description: 'Manage system users, roles, and access', href: '/settings/users', icon: Users, color: 'bg-blue-500' },
@@ -13,7 +15,10 @@ const settingsPages = [
 ]
 
 export default function SettingsPage() {
+  const { hasRole } = useAuth()
+
   return (
+    <RoleGuard allowedRoles={['super_admin', 'hospital_admin']}>
     <div className="p-8">
       <div className="mb-6">
         <Link href="/dashboard"><Button variant="ghost" className="mb-4"><ArrowLeft className="mr-2 h-4 w-4" /> Back to Dashboard</Button></Link>
@@ -46,5 +51,6 @@ export default function SettingsPage() {
         ))}
       </div>
     </div>
+    </RoleGuard>
   )
 }

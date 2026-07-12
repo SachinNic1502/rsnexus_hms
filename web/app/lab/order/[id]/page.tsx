@@ -10,6 +10,7 @@ import { ArrowLeft, TestTube, Loader2, ClipboardCheck, Play, Printer, User, Stet
 import Link from 'next/link'
 import { useToast } from '@/components/ui/toast'
 import { useAuth } from '@/lib/auth-context'
+import { RoleGuard } from '@/components/role-guard'
 
 interface Test {
   id: string
@@ -33,7 +34,7 @@ export default function LabOrderDetailPage() {
   const params = useParams()
   const router = useRouter()
   const { toast } = useToast()
-  const { user } = useAuth()
+  const { user, hasRole } = useAuth()
   const [order, setOrder] = useState<LabOrder | null>(null)
   const [loading, setLoading] = useState(true)
   const [results, setResults] = useState<Record<string, string>>({})
@@ -126,6 +127,7 @@ export default function LabOrderDetailPage() {
   }
 
   return (
+    <RoleGuard allowedRoles={['super_admin', 'hospital_admin', 'doctor', 'lab_technician']}>
     <div className="p-8">
       {/* Navigation & Controls */}
       <div className="mb-6 no-print flex items-center justify-between print:hidden">
@@ -196,7 +198,7 @@ export default function LabOrderDetailPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {order.status === 'pending' && (
+            {order.status === 'pending' && hasRole(['super_admin', 'hospital_admin', 'lab_technician']) && (
               <div className="text-center py-6">
                 <p className="text-gray-600 mb-4 font-medium">This order is ready to be processed.</p>
                 <Button onClick={startProcessing} disabled={submitting} className="bg-blue-600 hover:bg-blue-700">
@@ -206,7 +208,7 @@ export default function LabOrderDetailPage() {
               </div>
             )}
 
-            {order.status === 'in_progress' && (
+            {order.status === 'in_progress' && hasRole(['super_admin', 'hospital_admin', 'lab_technician']) && (
               <form onSubmit={handleSubmitResults} className="space-y-4">
                 <p className="text-sm text-gray-500 mb-4">Please input findings and values for each test below:</p>
                 <div className="space-y-4">
@@ -263,5 +265,6 @@ export default function LabOrderDetailPage() {
         </Card>
       </div>
     </div>
+    </RoleGuard>
   )
 }

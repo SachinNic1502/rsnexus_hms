@@ -8,9 +8,12 @@ import { Input } from '@/components/ui/input'
 import { ArrowLeft, Loader2, Stethoscope, ClipboardCheck, TestTube, FileText } from 'lucide-react'
 import Link from 'next/link'
 import { useToast } from '@/components/ui/toast'
+import { RoleGuard } from '@/components/role-guard'
+import { useAuth } from '@/lib/auth-context'
 
 export default function DoctorPerformancePage() {
   const { toast } = useToast()
+  const { hasRole } = useAuth()
   const [month, setMonth] = useState(() => {
     const d = new Date()
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
@@ -35,6 +38,7 @@ export default function DoctorPerformancePage() {
   }
 
   return (
+    <RoleGuard allowedRoles={['super_admin', 'hospital_admin']}>
     <div className="p-8">
       <div className="mb-6 flex items-center justify-between no-print print:hidden">
         <div>
@@ -108,5 +112,6 @@ export default function DoctorPerformancePage() {
         </div>
       )}
     </div>
+    </RoleGuard>
   )
 }

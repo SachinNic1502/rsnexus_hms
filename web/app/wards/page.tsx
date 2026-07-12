@@ -7,6 +7,8 @@ import { Badge } from '@/components/ui/badge'
 import { ArrowLeft, Plus, Bed, DoorOpen, Building2, Loader2, Trash2, Edit } from 'lucide-react'
 import Link from 'next/link'
 import { useToast } from '@/components/ui/toast'
+import { RoleGuard } from '@/components/role-guard'
+import { useAuth } from '@/lib/auth-context'
 
 interface Bed {
   id: string
@@ -59,6 +61,7 @@ export default function WardsPage() {
   const [showRoomForm, setShowRoomForm] = useState<string | null>(null)
   const [roomForm, setRoomForm] = useState({ roomNumber: '', type: 'general', bedCount: '4', chargesPerDay: '500', autoCreateBeds: true })
   const [savingRoom, setSavingRoom] = useState(false)
+  const { hasRole } = useAuth()
 
   useEffect(() => { fetchWards() }, [])
 
@@ -124,6 +127,7 @@ export default function WardsPage() {
   }
 
   return (
+    <RoleGuard allowedRoles={['super_admin', 'hospital_admin']}>
     <div className="p-8">
       <div className="mb-6">
         <Link href="/dashboard">
@@ -344,5 +348,6 @@ export default function WardsPage() {
         </div>
       )}
     </div>
+    </RoleGuard>
   )
 }

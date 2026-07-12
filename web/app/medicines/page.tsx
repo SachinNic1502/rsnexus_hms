@@ -12,6 +12,8 @@ import { ArrowLeft, Plus, Loader2, Edit, Trash2, Pill, Package } from 'lucide-re
 import Link from 'next/link'
 import { useToast } from '@/components/ui/toast'
 import { ConfirmDialog } from '@/components/ui/dialog'
+import { RoleGuard } from '@/components/role-guard'
+import { useAuth } from '@/lib/auth-context'
 import { useState, useEffect as UseEffect2 } from 'react'
 
 interface Medicine {
@@ -33,6 +35,7 @@ export default function MedicinesPage() {
   const [search, setSearch] = useState('')
   const [stockTarget, setStockTarget] = useState<Medicine | null>(null)
   const [stockValue, setStockValue] = useState<number>(0)
+  const { hasRole } = useAuth()
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm<MedicineForm>({
     resolver: zodResolver(medicineSchema),
@@ -81,6 +84,7 @@ export default function MedicinesPage() {
   }
 
   return (
+    <RoleGuard allowedRoles={['super_admin', 'hospital_admin', 'pharmacist']}>
     <div className="p-8">
       <div className="mb-6">
         <Link href="/dashboard"><Button variant="ghost" className="mb-4"><ArrowLeft className="mr-2 h-4 w-4" /> Back</Button></Link>
@@ -199,5 +203,6 @@ export default function MedicinesPage() {
         </div>
       )}
     </div>
+    </RoleGuard>
   )
 }

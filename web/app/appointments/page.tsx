@@ -7,6 +7,8 @@ import { Badge } from '@/components/ui/badge'
 import { Plus, Calendar, Clock, User, Stethoscope, Loader2, CalendarX, Edit, ChevronLeft, ChevronRight, Receipt } from 'lucide-react'
 import Link from 'next/link'
 import { useToast } from '@/components/ui/toast'
+import { RoleGuard } from '@/components/role-guard'
+import { useAuth } from '@/lib/auth-context'
 
 interface Appointment {
   id: string
@@ -79,6 +81,7 @@ const getBillingBadge = (invoices?: any[]) => {
 
 export default function AppointmentsPage() {
   const { toast } = useToast()
+  const { hasRole } = useAuth()
   const [view, setView] = useState<'list' | 'calendar'>('list')
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [loading, setLoading] = useState(true)
@@ -178,6 +181,7 @@ export default function AppointmentsPage() {
   const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
   return (
+    <RoleGuard allowedRoles={['super_admin', 'hospital_admin', 'receptionist', 'doctor', 'nurse']}>
     <div className="p-8">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
         <div>
@@ -461,5 +465,6 @@ export default function AppointmentsPage() {
         </>
       )}
     </div>
+    </RoleGuard>
   )
 }

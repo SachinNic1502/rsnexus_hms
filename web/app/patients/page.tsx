@@ -8,6 +8,8 @@ import { Badge } from '@/components/ui/badge'
 import { Search, Plus, User, Phone, Loader2, Users } from 'lucide-react'
 import Link from 'next/link'
 import { useToast } from '@/components/ui/toast'
+import { RoleGuard } from '@/components/role-guard'
+import { useAuth } from '@/lib/auth-context'
 
 interface Patient {
   id: string
@@ -26,6 +28,7 @@ interface Patient {
 
 export default function PatientsPage() {
   const { toast } = useToast()
+  const { hasRole } = useAuth()
   const [patients, setPatients] = useState<Patient[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
@@ -61,6 +64,7 @@ export default function PatientsPage() {
   }
 
   return (
+    <RoleGuard allowedRoles={['super_admin', 'hospital_admin', 'receptionist', 'doctor', 'nurse']}>
     <div className="p-8">
       <div className="flex items-center justify-between mb-8">
         <div>
@@ -176,5 +180,6 @@ export default function PatientsPage() {
         </div>
       )}
     </div>
+    </RoleGuard>
   )
 }

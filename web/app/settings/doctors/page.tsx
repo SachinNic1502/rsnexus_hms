@@ -132,7 +132,7 @@ export default function DoctorsPage() {
                 </div>
                 <div>
                   <label className="text-sm font-medium">Email *</label>
-                  <Input type="email" {...register('email')} placeholder="doctor@rsnexus.com" />
+                  <Input type="email" {...register('email')} placeholder="doctor@jeevantihospitals.com" />
                   {errors.email && <p className="text-xs text-red-500 mt-1">{errors.email.message}</p>}
                 </div>
                 <div>

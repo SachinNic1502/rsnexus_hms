@@ -120,6 +120,11 @@ export const admissionSchema = z.object({
   wardId: z.string().min(1, 'Ward is required'),
   roomId: z.string().min(1, 'Room is required'),
   bedId: z.string().min(1, 'Bed is required'),
+  // Expected length of stay in days (optional, informational only).
+  expectedStayDays: z.union([z.string(), z.number()]).optional().or(z.literal('')),
+  // Optional link back to the originating OPD appointment/consultation.
+  appointmentId: z.string().optional().or(z.literal('')),
+  consultationId: z.string().optional().or(z.literal('')),
 })
 
 // ─── Daily Round ─────────────────────────────────────────

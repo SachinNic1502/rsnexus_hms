@@ -7,11 +7,12 @@ export interface PatientWhereInput {
 }
 
 export interface AppointmentWhereInput {
-  status?: 'scheduled' | 'waiting' | 'in_progress' | 'completed' | 'cancelled'
+  status?: 'scheduled' | 'waiting' | 'in_progress' | 'completed' | 'cancelled' | { in: ('scheduled' | 'waiting' | 'in_progress' | 'completed' | 'cancelled')[] }
   date?: Date | { gte?: Date; lt?: Date; lte?: Date }
   doctorId?: string
   patientId?: string
   isDeleted?: { not?: boolean; isSet?: boolean } | boolean
+  OR?: AppointmentWhereInput[]
 }
 
 export interface InvoiceWhereInput {
@@ -22,6 +23,7 @@ export interface InvoiceWhereInput {
 
 export interface AdmissionWhereInput {
   status?: 'admitted' | 'discharged'
+  doctorId?: string
 }
 
 // Common types for API responses

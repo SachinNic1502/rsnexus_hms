@@ -1,4 +1,4 @@
-# Rs Nexus HMS
+# Jeevanti Hospitals
 
 A comprehensive Hospital Management System built with Next.js 16, Prisma, MongoDB, and NextAuth.
 
@@ -71,7 +71,7 @@ npm run dev
 
 ```env
 # MongoDB Connection
-DATABASE_URL="mongodb+srv://username:password@cluster.mongodb.net/rsnexus_hms?appName=Cluster0"
+DATABASE_URL="mongodb+srv://username:password@cluster.mongodb.net/jeevanti_hms?appName=Cluster0"
 
 # NextAuth
 NEXTAUTH_SECRET="your-secret-key"

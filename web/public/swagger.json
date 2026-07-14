@@ -1,8 +1,8 @@
 {
   "openapi": "3.0.3",
   "info": {
-    "title": "Rs Nexus Hospital Management System API",
-    "description": "Comprehensive API documentation for the Rs Nexus Hospital Management System (HMS) built with Next.js, Prisma, MongoDB, and NextAuth.",
+    "title": "Jeevanti Hospitals Management System API",
+    "description": "Comprehensive API documentation for the Jeevanti Hospitals Management System (HMS) built with Next.js, Prisma, MongoDB, and NextAuth.",
     "version": "1.0.0"
   },
   "servers": [

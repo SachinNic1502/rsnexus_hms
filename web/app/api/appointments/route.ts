@@ -11,6 +11,12 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get("status")
     const date = searchParams.get("date")
     const doctorId = searchParams.get("doctorId")
+    // Opt-in: alongside the given date, also surface earlier appointments
+    // that were never resolved (still scheduled/waiting/in_progress), so a
+    // patient checked in one day and not yet seen doesn't silently drop out
+    // of the queue on the next day. Off by default — existing callers of
+    // this endpoint keep the exact current date-only behavior.
+    const includeOverdue = searchParams.get("includeOverdue") === "true"
 
     const where: AppointmentWhereInput = { isDeleted: { isSet: false } }
     if (status && status !== "all") {
@@ -21,7 +27,14 @@ export async function GET(request: NextRequest) {
       dayStart.setHours(0, 0, 0, 0)
       const dayEnd = new Date(date)
       dayEnd.setHours(23, 59, 59, 999)
-      where.date = { gte: dayStart, lte: dayEnd }
+      if (includeOverdue) {
+        where.OR = [
+          { date: { gte: dayStart, lte: dayEnd } },
+          { status: { in: ['scheduled', 'waiting', 'in_progress'] }, date: { lt: dayStart } },
+        ]
+      } else {
+        where.date = { gte: dayStart, lte: dayEnd }
+      }
     }
     if (doctorId) {
       where.doctorId = doctorId
@@ -30,7 +43,10 @@ export async function GET(request: NextRequest) {
     const appointments = await prisma.appointment.findMany({
       where,
       include: {
-        patient: true,
+        // Active admission (if any) lets the UI route an admitted patient's
+        // card to the OPD Patient Details (Admission) page instead of the
+        // plain patient profile.
+        patient: { include: { admissions: { where: { status: "admitted" }, select: { id: true }, take: 1 } } },
         doctor: { include: { user: true } },
         department: true,
       },

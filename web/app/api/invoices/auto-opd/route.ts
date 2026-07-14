@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { handleApiError } from "@/lib/error-handler"
+import { computeDueDate } from "@/lib/utils"
 
 export async function POST(request: NextRequest) {
   try {
@@ -22,6 +23,24 @@ export async function POST(request: NextRequest) {
 
     if (!consultation) {
       return NextResponse.json({ error: "Consultation not found" }, { status: 404 })
+    }
+
+    // Dedup guard: if an OPD invoice already exists for this consultation's
+    // appointment, return it instead of creating a duplicate. Both the
+    // "Discharge Today" flow and the manual "Generate Bill" button on the
+    // patient profile call this endpoint, so it must be idempotent per visit.
+    if (consultation.appointmentId) {
+      const existingOpd = await prisma.invoice.findFirst({
+        where: {
+          appointmentId: consultation.appointmentId,
+          type: "OPD",
+          status: { not: "cancelled" },
+        },
+        include: { patient: true, items: true },
+      })
+      if (existingOpd) {
+        return NextResponse.json(existingOpd, { status: 200 })
+      }
     }
 
     const items: { description: string; quantity: number; unitPrice: number; type: string }[] = []
@@ -121,6 +140,7 @@ export async function POST(request: NextRequest) {
         tax: 0,
         discount: 0,
         total: subtotal,
+        dueDate: computeDueDate(),
         items: {
           create: items.map((item) => ({
             description: item.description,

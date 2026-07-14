@@ -34,6 +34,7 @@ export async function GET(
           take: 10,
         },
         invoices: {
+          include: { items: true, payments: true },
           orderBy: { createdAt: "desc" },
           take: 10,
         },

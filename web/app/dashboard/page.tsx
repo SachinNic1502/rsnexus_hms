@@ -15,6 +15,9 @@ import {
   AlertCircle,
   Loader2,
   Settings,
+  IndianRupee,
+  Receipt,
+  CheckCircle,
 } from 'lucide-react'
 import Link from 'next/link'
 import { useAuth } from '@/lib/auth-context'
@@ -28,6 +31,27 @@ interface DashboardStats {
   occupiedBeds: number
   pendingBills: number
   pendingBillTotal: number
+  // Phase 8 billing/payment metrics
+  paidBills?: number
+  partialBills?: number
+  outstandingAmount?: number
+  dailyRevenue?: number
+  monthlyRevenue?: number
+}
+
+interface PendingInvoice {
+  id: string
+  invoiceNumber: string
+  patient: string
+  type: string
+  status: string
+  total: number
+  paid: number
+  remaining: number
+  invoiceDate: string
+  dueDate: string
+  daysPending: number
+  overdue: boolean
 }
 
 interface Doctor {
@@ -61,6 +85,7 @@ export default function DashboardPage() {
   const [doctors, setDoctors] = useState<Doctor[]>([])
   const [recentAppointments, setRecentAppointments] = useState<RecentAppointment[]>([])
   const [recentAdmissions, setRecentAdmissions] = useState<RecentAdmission[]>([])
+  const [pendingInvoices, setPendingInvoices] = useState<PendingInvoice[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -76,6 +101,7 @@ export default function DashboardPage() {
         setDoctors(Array.isArray(data.doctors) ? data.doctors : [])
         setRecentAppointments(Array.isArray(data.recentAppointments) ? data.recentAppointments : [])
         setRecentAdmissions(Array.isArray(data.recentAdmissions) ? data.recentAdmissions : [])
+        setPendingInvoices(Array.isArray(data.pendingInvoices) ? data.pendingInvoices : [])
       }
     } catch (error) {
       toast('Failed to fetch dashboard', 'error')
@@ -83,6 +109,9 @@ export default function DashboardPage() {
       setLoading(false)
     }
   }
+
+  const formatDate = (d: string) =>
+    new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -210,6 +239,130 @@ export default function DashboardPage() {
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {/* Billing & Revenue (Phase 8) — admin / billing roles only. Enhances
+          the dashboard without altering the existing sections above. */}
+      {hasRole(['super_admin', 'hospital_admin', 'billing_staff']) && stats && (
+        <div className="mb-8">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Billing &amp; Revenue</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-gray-600">Pending Bills</CardTitle>
+                <div className="p-2 rounded-lg bg-orange-100"><Receipt className="h-5 w-5 text-orange-600" /></div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold">{stats.pendingBills || 0}</div>
+                <p className="text-xs text-gray-600 mt-1">₹{(stats.pendingBillTotal || 0).toLocaleString()} invoiced</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-gray-600">Paid Bills</CardTitle>
+                <div className="p-2 rounded-lg bg-green-100"><CheckCircle className="h-5 w-5 text-green-600" /></div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold">{stats.paidBills || 0}</div>
+                <p className="text-xs text-gray-600 mt-1">Fully settled invoices</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-gray-600">Partial Payments</CardTitle>
+                <div className="p-2 rounded-lg bg-yellow-100"><AlertCircle className="h-5 w-5 text-yellow-600" /></div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold">{stats.partialBills || 0}</div>
+                <p className="text-xs text-gray-600 mt-1">Partially-paid invoices</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-gray-600">Outstanding Amount</CardTitle>
+                <div className="p-2 rounded-lg bg-red-100"><IndianRupee className="h-5 w-5 text-red-600" /></div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold">₹{(stats.outstandingAmount || 0).toLocaleString()}</div>
+                <p className="text-xs text-gray-600 mt-1">Total due (payment-adjusted)</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-gray-600">Daily Revenue</CardTitle>
+                <div className="p-2 rounded-lg bg-blue-100"><DollarSign className="h-5 w-5 text-blue-600" /></div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold">₹{(stats.dailyRevenue || 0).toLocaleString()}</div>
+                <p className="text-xs text-gray-600 mt-1">Collected today</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-gray-600">Monthly Revenue</CardTitle>
+                <div className="p-2 rounded-lg bg-purple-100"><TrendingUp className="h-5 w-5 text-purple-600" /></div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold">₹{(stats.monthlyRevenue || 0).toLocaleString()}</div>
+                <p className="text-xs text-gray-600 mt-1">Collected this month</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Pending bills table with invoice date, due date, days pending */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle>Pending Bills</CardTitle>
+              <Link href="/billing/pending"><Button variant="outline" size="sm">View All</Button></Link>
+            </CardHeader>
+            <CardContent>
+              {pendingInvoices.length === 0 ? (
+                <p className="text-sm text-gray-500 text-center py-4">No pending bills</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-left text-gray-500 border-b">
+                        <th className="py-2 pr-4 font-medium">Invoice</th>
+                        <th className="py-2 pr-4 font-medium">Patient</th>
+                        <th className="py-2 pr-4 font-medium">Type</th>
+                        <th className="py-2 pr-4 font-medium">Invoice Date</th>
+                        <th className="py-2 pr-4 font-medium">Due Date</th>
+                        <th className="py-2 pr-4 font-medium">Days Pending</th>
+                        <th className="py-2 pr-4 font-medium text-right">Outstanding</th>
+                        <th className="py-2 pr-4 font-medium">Status</th>
+                        <th className="py-2 font-medium"></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {pendingInvoices.slice(0, 10).map((inv) => (
+                        <tr key={inv.id} className="border-b last:border-0 hover:bg-gray-50">
+                          <td className="py-2 pr-4"><Badge variant="outline">{inv.invoiceNumber}</Badge></td>
+                          <td className="py-2 pr-4">{inv.patient}</td>
+                          <td className="py-2 pr-4">{inv.type}</td>
+                          <td className="py-2 pr-4 text-gray-600">{formatDate(inv.invoiceDate)}</td>
+                          <td className="py-2 pr-4 text-gray-600">{formatDate(inv.dueDate)}</td>
+                          <td className="py-2 pr-4">
+                            <span className={inv.overdue ? 'text-red-600 font-medium' : ''}>
+                              {inv.daysPending}d{inv.overdue ? ' (overdue)' : ''}
+                            </span>
+                          </td>
+                          <td className="py-2 pr-4 text-right font-medium">₹{inv.remaining.toLocaleString()}</td>
+                          <td className="py-2 pr-4">
+                            <Badge variant={inv.status === 'partial' ? 'warning' : 'destructive'}>{inv.status}</Badge>
+                          </td>
+                          <td className="py-2">
+                            <Link href={`/billing/${inv.id}/payment`}><Button size="sm" variant="ghost">Pay</Button></Link>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

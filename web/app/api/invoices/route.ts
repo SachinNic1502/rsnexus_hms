@@ -4,6 +4,7 @@ import { invoiceSchema, invoiceItemSchema } from "@/lib/validations"
 import { handleApiError } from "@/lib/error-handler"
 import type { InvoiceWhereInput } from "@/lib/types"
 import { getToken } from "next-auth/jwt"
+import { computeDueDate } from "@/lib/utils"
 
 const billingRoles = ["super_admin", "hospital_admin", "billing_staff", "nurse"]
 
@@ -82,6 +83,7 @@ export async function POST(request: NextRequest) {
         tax,
         discount,
         total,
+        dueDate: computeDueDate(),
         items: {
           create: items.map((item: any) => ({
             description: item.description,

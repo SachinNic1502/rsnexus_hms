@@ -8,10 +8,14 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const status = searchParams.get("status")
+    const doctorId = searchParams.get("doctorId")
 
     const where: AdmissionWhereInput = {}
     if (status && status !== "all") {
       where.status = status as 'admitted' | 'discharged'
+    }
+    if (doctorId) {
+      where.doctorId = doctorId
     }
 
     const admissions = await prisma.admission.findMany({
@@ -41,6 +45,16 @@ export async function POST(request: NextRequest) {
     }
 
     const { patientId, doctorId, wardId, roomId, bedId } = parsed.data
+    // Optional informational / linkage fields (backward-compatible additions).
+    const expectedStayRaw = parsed.data.expectedStayDays
+    const expectedStayDays =
+      expectedStayRaw === "" || expectedStayRaw === undefined || expectedStayRaw === null
+        ? undefined
+        : Number.isFinite(Number(expectedStayRaw))
+          ? parseInt(String(expectedStayRaw), 10)
+          : undefined
+    const appointmentId = parsed.data.appointmentId ? parsed.data.appointmentId : undefined
+    const consultationId = parsed.data.consultationId ? parsed.data.consultationId : undefined
 
     const lastAdmission = await prisma.admission.findFirst({
       orderBy: { admissionDate: "desc" },
@@ -63,6 +77,9 @@ export async function POST(request: NextRequest) {
           roomId,
           bedId,
           admissionNumber,
+          ...(expectedStayDays !== undefined ? { expectedStayDays } : {}),
+          ...(appointmentId ? { appointmentId } : {}),
+          ...(consultationId ? { consultationId } : {}),
         },
         include: {
           patient: true,

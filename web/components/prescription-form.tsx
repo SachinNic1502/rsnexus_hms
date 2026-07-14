@@ -1,13 +1,18 @@
 "use client"
 
-import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { Plus, Trash2, Pill } from 'lucide-react'
+import { Trash2, Pill } from 'lucide-react'
 
-interface Medicine {
+export interface Medicine {
   id: string
+  name: string
+  dose: string
+  instructions: string
+}
+
+export interface CurrentMedicineInput {
   name: string
   dose: string
   instructions: string
@@ -19,59 +24,31 @@ interface MedicineOption {
 }
 
 interface PrescriptionFormProps {
-  onSave: (medicines: Medicine[]) => void
-  onCancel: () => void
+  medicines: Medicine[]
+  currentMedicine: CurrentMedicineInput
+  onCurrentMedicineChange: (value: CurrentMedicineInput) => void
+  onQuickAddMedicine: (name: string) => void
+  onRemoveMedicine: (id: string) => void
+  onUpdateMedicineDose: (id: string, dose: string) => void
   medicineOptions?: MedicineOption[]
   readOnly?: boolean
 }
 
-export function PrescriptionForm({ onSave, onCancel, medicineOptions = [], readOnly = false }: PrescriptionFormProps) {
-  const [medicines, setMedicines] = useState<Medicine[]>([])
-  const [currentMedicine, setCurrentMedicine] = useState({
-    name: '',
-    dose: '',
-    instructions: '',
-  })
-
-  const addMedicine = () => {
-    if (!currentMedicine.name || !currentMedicine.dose) {
-      alert('Please enter medicine name and dose')
-      return
-    }
-
-    const newMedicine: Medicine = {
-      id: Date.now().toString(),
-      ...currentMedicine,
-    }
-
-    setMedicines([...medicines, newMedicine])
-    setCurrentMedicine({
-      name: '',
-      dose: '',
-      instructions: '',
-    })
-  }
-
-  const quickAddMedicine = (name: string) => {
-    setMedicines(prev => [...prev, { id: `${Date.now()}-${name}`, name, dose: '', instructions: '' }])
-  }
-
-  const removeMedicine = (id: string) => {
-    setMedicines(medicines.filter((m) => m.id !== id))
-  }
-
-  const updateMedicineDose = (id: string, dose: string) => {
-    setMedicines(medicines.map((m) => (m.id === id ? { ...m, dose } : m)))
-  }
-
-  const handleSave = () => {
-    if (medicines.length === 0) {
-      alert('Please add at least one medicine')
-      return
-    }
-    onSave(medicines)
-  }
-
+// Controlled component: the medicine-entry state (current input + the list
+// being built) lives in the parent page so the "Add to Prescription" action
+// can be triggered from outside this form (e.g. a button in the page header).
+// Cancel / Finish actions are rendered by the parent page so they can share a
+// single aligned button row.
+export function PrescriptionForm({
+  medicines,
+  currentMedicine,
+  onCurrentMedicineChange,
+  onQuickAddMedicine,
+  onRemoveMedicine,
+  onUpdateMedicineDose,
+  medicineOptions = [],
+  readOnly = false,
+}: PrescriptionFormProps) {
   return (
     <div className="space-y-6">
       <Card>
@@ -91,7 +68,7 @@ export function PrescriptionForm({ onSave, onCancel, medicineOptions = [], readO
                 id="medicineName"
                 value={currentMedicine.name}
                 onChange={(e) =>
-                  setCurrentMedicine({ ...currentMedicine, name: e.target.value })
+                  onCurrentMedicineChange({ ...currentMedicine, name: e.target.value })
                 }
                 placeholder="e.g., Paracetamol"
                 list={medicineOptions.length > 0 ? 'medicine-master-options' : undefined}
@@ -113,7 +90,7 @@ export function PrescriptionForm({ onSave, onCancel, medicineOptions = [], readO
                 id="dose"
                 value={currentMedicine.dose}
                 onChange={(e) =>
-                  setCurrentMedicine({ ...currentMedicine, dose: e.target.value })
+                  onCurrentMedicineChange({ ...currentMedicine, dose: e.target.value })
                 }
                 placeholder="e.g., 500mg"
                 disabled={readOnly}
@@ -128,7 +105,7 @@ export function PrescriptionForm({ onSave, onCancel, medicineOptions = [], readO
               id="instructions"
               value={currentMedicine.instructions}
               onChange={(e) =>
-                setCurrentMedicine({ ...currentMedicine, instructions: e.target.value })
+                onCurrentMedicineChange({ ...currentMedicine, instructions: e.target.value })
               }
               rows={2}
               className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -136,10 +113,6 @@ export function PrescriptionForm({ onSave, onCancel, medicineOptions = [], readO
               disabled={readOnly}
             />
           </div>
-          <Button onClick={addMedicine} className="w-full" disabled={readOnly}>
-            <Plus className="mr-2 h-4 w-4" />
-            Add to Prescription
-          </Button>
 
           {medicineOptions.length > 0 && (
             <div className="space-y-2 pt-2 border-t">
@@ -149,7 +122,7 @@ export function PrescriptionForm({ onSave, onCancel, medicineOptions = [], readO
                   <button
                     key={m.id}
                     type="button"
-                    onClick={() => quickAddMedicine(m.name)}
+                    onClick={() => onQuickAddMedicine(m.name)}
                     disabled={readOnly}
                     className="px-3 py-1.5 text-xs rounded-full border bg-white hover:bg-blue-50 hover:border-blue-300 text-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
@@ -180,7 +153,7 @@ export function PrescriptionForm({ onSave, onCancel, medicineOptions = [], readO
                       <h4 className="font-semibold">{medicine.name}</h4>
                       <Input
                         value={medicine.dose}
-                        onChange={(e) => updateMedicineDose(medicine.id, e.target.value)}
+                        onChange={(e) => onUpdateMedicineDose(medicine.id, e.target.value)}
                         placeholder="Dose, e.g. 500mg"
                         className="h-7 w-36 text-xs"
                         disabled={readOnly}
@@ -193,7 +166,7 @@ export function PrescriptionForm({ onSave, onCancel, medicineOptions = [], readO
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={() => removeMedicine(medicine.id)}
+                    onClick={() => onRemoveMedicine(medicine.id)}
                     disabled={readOnly}
                   >
                     <Trash2 className="h-4 w-4 text-red-600" />
@@ -204,16 +177,6 @@ export function PrescriptionForm({ onSave, onCancel, medicineOptions = [], readO
           </CardContent>
         </Card>
       )}
-
-      {/* Actions */}
-      <div className="flex justify-end gap-4">
-        <Button variant="outline" onClick={onCancel}>
-          Cancel
-        </Button>
-        <Button onClick={handleSave} disabled={readOnly || medicines.length === 0}>
-          Save Prescription
-        </Button>
-      </div>
     </div>
   )
 }

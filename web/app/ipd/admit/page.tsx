@@ -1,7 +1,7 @@
 "use client"
 
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { Suspense, useState, useEffect } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -9,8 +9,9 @@ import { ArrowLeft, Save, Loader2 } from 'lucide-react'
 import Link from 'next/link'
 import { useToast } from '@/components/ui/toast'
 
-export default function IPDAdmitPage() {
+function IPDAdmitForm() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { toast } = useToast()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -23,11 +24,23 @@ export default function IPDAdmitPage() {
   const [rooms, setRooms] = useState<any[]>([])
   const [beds, setBeds] = useState<any[]>([])
 
+  // Optional link back to the originating OPD appointment/consultation when
+  // this admission is started from the "Admit Patient" step of Finish
+  // Consultation. Lets discharge later complete that consultation.
+  const [linkIds] = useState(() => ({
+    appointmentId: searchParams.get('appointmentId') || '',
+    consultationId: searchParams.get('consultationId') || '',
+  }))
+  const fromConsultation = Boolean(linkIds.appointmentId || linkIds.consultationId)
+
   const [formData, setFormData] = useState({
-    doctorId: '',
+    doctorId: searchParams.get('doctorId') || '',
     wardId: '',
     roomId: '',
     bedId: '',
+    // Pre-filled when the doctor already entered it on the Finish
+    // Consultation modal's Admit Patient step; still editable here.
+    expectedStayDays: searchParams.get('expectedStayDays') || '',
   })
 
   useEffect(() => {
@@ -38,6 +51,21 @@ export default function IPDAdmitPage() {
   useEffect(() => {
     fetch('/api/doctors').then(r => r.json()).then(d => setDoctors(Array.isArray(d) ? d : []))
   }, [])
+
+  // Prefill the patient when admitting straight from a consultation.
+  useEffect(() => {
+    const patientId = searchParams.get('patientId')
+    if (!patientId) return
+    fetch(`/api/patients/${patientId}`)
+      .then(r => (r.ok ? r.json() : null))
+      .then(p => {
+        if (p && p.id) {
+          setSelectedPatient(p)
+          setPatientSearch(p.uhid)
+        }
+      })
+      .catch(() => { /* fall back to manual search */ })
+  }, [searchParams])
 
   useEffect(() => {
     if (formData.wardId) {
@@ -85,7 +113,16 @@ export default function IPDAdmitPage() {
       const res = await fetch('/api/admissions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ patientId: selectedPatient.id, doctorId: formData.doctorId, wardId: formData.wardId, roomId: formData.roomId, bedId: formData.bedId }),
+        body: JSON.stringify({
+          patientId: selectedPatient.id,
+          doctorId: formData.doctorId,
+          wardId: formData.wardId,
+          roomId: formData.roomId,
+          bedId: formData.bedId,
+          expectedStayDays: formData.expectedStayDays,
+          appointmentId: linkIds.appointmentId,
+          consultationId: linkIds.consultationId,
+        }),
       })
       if (!res.ok) {
         const data = await res.json()
@@ -129,14 +166,34 @@ export default function IPDAdmitPage() {
               </div>
             </div>
 
+            {fromConsultation && (
+              <div className="text-sm text-blue-700 bg-blue-50 border border-blue-100 p-3 rounded-md">
+                Admitting from consultation — the patient and doctor have been pre-filled. The originating consultation will be completed automatically when this patient is discharged.
+              </div>
+            )}
+
             <div>
-              <h3 className="text-lg font-semibold mb-4">Doctor</h3>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Attending Doctor *</label>
-                <select name="doctorId" value={formData.doctorId} onChange={handleChange} required className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
-                  <option value="">Select Doctor</option>
-                  {doctors.map((d: any) => <option key={d.id} value={d.id}>Dr. {d.user.name}</option>)}
-                </select>
+              <h3 className="text-lg font-semibold mb-4">Doctor &amp; Stay</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Attending Doctor *</label>
+                  <select name="doctorId" value={formData.doctorId} onChange={handleChange} required className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+                    <option value="">Select Doctor</option>
+                    {doctors.map((d: any) => <option key={d.id} value={d.id}>Dr. {d.user.name}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Expected Admission Duration (days)</label>
+                  <Input
+                    type="number"
+                    min={1}
+                    name="expectedStayDays"
+                    value={formData.expectedStayDays}
+                    onChange={e => setFormData({ ...formData, expectedStayDays: e.target.value })}
+                    placeholder="e.g. 3"
+                  />
+                  <p className="text-xs text-gray-500">Estimate only — the patient stays admitted until the doctor discharges them.</p>
+                </div>
               </div>
             </div>
 
@@ -178,5 +235,13 @@ export default function IPDAdmitPage() {
         </CardContent>
       </Card>
     </div>
+  )
+}
+
+export default function IPDAdmitPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center h-96"><Loader2 className="h-8 w-8 animate-spin text-gray-400" /></div>}>
+      <IPDAdmitForm />
+    </Suspense>
   )
 }

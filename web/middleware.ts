@@ -74,7 +74,9 @@ const adminRoles = ["super_admin", "hospital_admin"]
 const doctorRoles = ["doctor", "receptionist"]
 const prescriptionRoles = ["doctor", "receptionist", "nurse"]
 const consultationRoles = ["doctor", "receptionist", "super_admin", "hospital_admin", "nurse"]
-const nurseRoles = ["super_admin", "hospital_admin", "nurse"]
+// Doctors are included so they can admit and discharge patients as part of the
+// Finish Consultation → Admit Patient (IPD) workflow. Existing roles preserved.
+const nurseRoles = ["super_admin", "hospital_admin", "nurse", "doctor"]
 const labRoles = ["super_admin", "hospital_admin", "doctor", "lab_technician"]
 const billingRoles = ["super_admin", "hospital_admin", "billing_staff", "receptionist", "nurse"]
 const reportsRoles = ["super_admin", "hospital_admin", "receptionist"]
@@ -87,7 +89,8 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith("/login") ||
     pathname.startsWith("/_next") ||
     pathname.startsWith("/favicon") ||
-    pathname === "/"
+    pathname === "/" ||
+    /\.(jpg|jpeg|png|svg|webp|gif|ico|json)$/.test(pathname)
   ) {
     return NextResponse.next()
   }

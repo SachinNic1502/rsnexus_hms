@@ -17,7 +17,6 @@ import {
   BarChart3,
   Settings,
   LogOut,
-  Hospital,
   Pill,
   ClipboardList,
   Menu,
@@ -50,19 +49,31 @@ function SidebarContent({ onLinkClick }: { onLinkClick?: () => void }) {
     ? [...filteredNav].sort((a, b) => a.name.localeCompare(b.name))
     : filteredNav
 
+  // When one nav href is a prefix of another (e.g. "/patients" and
+  // "/patients/register"), a path like "/patients/register" matches both,
+  // highlighting them simultaneously. Only the most specific (longest)
+  // matching href should be active.
+  const activeHref = visibleNav.reduce<string | null>((best, item) => {
+    const matches = pathname === item.href || pathname.startsWith(`${item.href}/`)
+    if (!matches) return best
+    if (!best || item.href.length > best.length) return item.href
+    return best
+  }, null)
+
   return (
     <div className="flex h-full flex-col bg-slate-900 text-white">
       <div className="flex items-center gap-2 p-6 border-b border-slate-800">
-        <Hospital className="h-8 w-8 text-blue-400 shrink-0" />
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/jeevanti-logo.jpg" alt="Jeevanti Hospitals" className="h-8 w-8 object-contain shrink-0 rounded" />
         <div className="min-w-0">
-          <h1 className="font-bold text-lg truncate">Rs Nexus HMS</h1>
+          <h1 className="font-bold text-lg truncate">Jeevanti Hospitals</h1>
           <p className="text-xs text-slate-400 truncate">Hospital Management</p>
         </div>
       </div>
 
       <nav className="flex-1 space-y-1 p-4 overflow-y-auto">
         {visibleNav.map((item) => {
-          const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`)
+          const isActive = item.href === activeHref
           return (
             <Link
               key={item.name}

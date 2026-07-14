@@ -19,10 +19,14 @@ import {
   Printer,
   Receipt,
   ClipboardList,
+  Download,
+  Eye,
+  IndianRupee,
 } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
 import { useToast } from "@/components/ui/toast";
+import { exportInvoiceToPDF } from "@/lib/export-utils";
 
 interface PatientData {
   id: string;
@@ -202,6 +206,16 @@ export default function PatientDetailPage() {
   ]);
   const isDoctor = hasRole(["doctor"]);
   const isNurse = hasRole(["nurse"]);
+  // Roles that may view/handle billing on the profile. Doctors focus on the
+  // clinical record, so the Billing section is hidden from them.
+  const canViewBilling = hasRole([
+    "super_admin",
+    "hospital_admin",
+    "billing_staff",
+    "receptionist",
+    "nurse",
+  ]);
+  const canTakePayment = canViewBilling;
 
   useEffect(() => {
     fetchPatient();
@@ -275,6 +289,30 @@ export default function PatientDetailPage() {
   const inProgressAppointment = patient.appointments.find(
     (a: any) => a.status === "waiting" || a.status === "in_progress",
   );
+
+  // Payment status derived from payments recorded against the invoice.
+  const paymentStatus = (
+    inv: any,
+  ): { label: string; variant: "success" | "warning" | "destructive" } => {
+    const paid = (inv.payments || []).reduce(
+      (s: number, p: any) => s + p.amount,
+      0,
+    );
+    const remaining = inv.total - paid;
+    if (remaining <= 0) return { label: "Paid", variant: "success" };
+    if (paid > 0) return { label: "Partially Paid", variant: "warning" };
+    return { label: "Unpaid", variant: "destructive" };
+  };
+  const billingStatusVariant: Record<
+    string,
+    "success" | "warning" | "destructive" | "secondary"
+  > = {
+    paid: "success",
+    partial: "warning",
+    pending: "destructive",
+    cancelled: "secondary",
+  };
+  const invoices = patient.invoices || [];
 
   return (
     <div className="p-8">
@@ -370,13 +408,12 @@ export default function PatientDetailPage() {
             </Button>
           </Link>
         )}
-        {(isFrontDesk || isDoctor) && (
+        {isFrontDesk && (
           <Link
             href={`/patients/register?patientId=${patient.id}&uhid=${patient.uhid}&name=${encodeURIComponent(patient.name)}`}
           >
             <Button className="w-full">
-              <Calendar className="mr-2 h-4 w-4" />{" "}
-              {isDoctor ? "Schedule Visit" : "New Visit"}
+              <Calendar className="mr-2 h-4 w-4" /> New Visit
             </Button>
           </Link>
         )}
@@ -570,6 +607,111 @@ export default function PatientDetailPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Billing (Phase 9) — consolidated billing & payment view with
+          view / download / print actions. Hidden from doctors. */}
+      {canViewBilling && (
+        <Card className="mt-6">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <IndianRupee className="h-5 w-5" /> Billing
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {invoices.length === 0 ? (
+              <p className="text-sm text-gray-500 text-center py-4">
+                No invoices yet
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {invoices.map((inv: any) => {
+                  const pay = paymentStatus(inv);
+                  const paid = (inv.payments || []).reduce(
+                    (s: number, p: any) => s + p.amount,
+                    0,
+                  );
+                  const remaining = inv.total - paid;
+                  return (
+                    <div
+                      key={inv.id}
+                      className="p-4 rounded-lg border hover:bg-gray-50 transition-colors"
+                    >
+                      <div className="flex items-center justify-between flex-wrap gap-2 mb-2">
+                        <div className="flex items-center gap-3 flex-wrap">
+                          <Badge variant="outline">{inv.invoiceNumber}</Badge>
+                          <span className="text-sm text-gray-600">{inv.type}</span>
+                          <span className="text-sm text-gray-500">
+                            {new Date(inv.createdAt).toLocaleDateString()}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-gray-500">Billing:</span>
+                          <Badge variant={billingStatusVariant[inv.status] || "secondary"}>
+                            {inv.status}
+                          </Badge>
+                          <span className="text-xs text-gray-500">Payment:</span>
+                          <Badge variant={pay.variant}>{pay.label}</Badge>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between flex-wrap gap-2">
+                        <div className="text-sm text-gray-600">
+                          Total{" "}
+                          <span className="font-medium text-gray-900">
+                            ₹{inv.total.toLocaleString()}
+                          </span>{" "}
+                          · Paid{" "}
+                          <span className="font-medium text-green-600">
+                            ₹{paid.toLocaleString()}
+                          </span>{" "}
+                          · Due{" "}
+                          <span className="font-medium text-red-600">
+                            ₹{remaining.toLocaleString()}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <Link href={`/billing/${inv.id}/receipt`}>
+                            <Button size="sm" variant="outline">
+                              <Eye className="h-4 w-4 mr-1" /> View Invoice
+                            </Button>
+                          </Link>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() =>
+                              exportInvoiceToPDF(inv, {
+                                name: patient.name,
+                                uhid: patient.uhid,
+                              })
+                            }
+                          >
+                            <Download className="h-4 w-4 mr-1" /> Download Invoice
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() =>
+                              window.open(`/billing/${inv.id}/receipt`, "_blank")
+                            }
+                          >
+                            <Printer className="h-4 w-4 mr-1" /> Print Invoice
+                          </Button>
+                          {canTakePayment && inv.status !== "paid" && (
+                            <Link href={`/billing/${inv.id}/payment`}>
+                              <Button size="sm">
+                                <Receipt className="h-4 w-4 mr-1" /> Pay
+                              </Button>
+                            </Link>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

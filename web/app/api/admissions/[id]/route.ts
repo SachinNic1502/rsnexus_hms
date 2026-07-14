@@ -80,69 +80,17 @@ export async function PUT(
         return NextResponse.json({ error: "Admission not found" }, { status: 404 })
       }
 
-      const admissionDate = new Date(admission.admissionDate)
       const dischargeDate = new Date()
-      const daysAdmitted = Math.max(1, Math.ceil((dischargeDate.getTime() - admissionDate.getTime()) / (1000 * 60 * 60 * 24)))
-      const roomCharges = admission.room.chargesPerDay * daysAdmitted
 
+      // NOTE: The IPD invoice is intentionally NOT created here. Invoice
+      // generation is owned by the dedicated `/api/invoices/auto-ipd` endpoint
+      // (called by the discharge page right after this update), which builds the
+      // full bill — room charges, doctor-visit charges, procedures, lab tests
+      // and any extra charges. Creating a room-only invoice here would make
+      // auto-ipd return 409 ("IPD invoice already exists") and the richer bill
+      // would never be generated. Any IPD invoice that already exists is left
+      // untouched so auto-ipd's own dedup guard remains the single authority.
       const existingInvoice = admission.invoices.find((inv) => inv.type === "IPD")
-      let invoiceId: string
-
-      if (existingInvoice) {
-        const roomItemExists = existingInvoice.items.some(
-          (item) => item.description.includes("Room Charges")
-        )
-
-        if (!roomItemExists) {
-          await prisma.invoiceItem.create({
-            data: {
-              invoiceId: existingInvoice.id,
-              description: `Room Charges (${admission.room.roomNumber}) - ${daysAdmitted} days @ ₹${admission.room.chargesPerDay}/day`,
-              quantity: daysAdmitted,
-              unitPrice: admission.room.chargesPerDay,
-              total: roomCharges,
-              type: "room",
-            },
-          })
-
-          const allItems = await prisma.invoiceItem.findMany({
-            where: { invoiceId: existingInvoice.id },
-          })
-          const subtotal = allItems.reduce((sum, item) => sum + item.total, 0)
-          await prisma.invoice.update({
-            where: { id: existingInvoice.id },
-            data: { subtotal, total: subtotal + existingInvoice.tax - existingInvoice.discount },
-          })
-        }
-        invoiceId = existingInvoice.id
-      } else {
-        const invoiceNumber = `IPD-${Date.now().toString(36).toUpperCase()}`
-        const newInvoice = await prisma.invoice.create({
-          data: {
-            patientId: admission.patientId,
-            admissionId: admission.id,
-            invoiceNumber,
-            type: "IPD",
-            subtotal: roomCharges,
-            tax: 0,
-            discount: 0,
-            total: roomCharges,
-          },
-        })
-
-        await prisma.invoiceItem.create({
-          data: {
-            invoiceId: newInvoice.id,
-            description: `Room Charges (${admission.room.roomNumber}) - ${daysAdmitted} days @ ₹${admission.room.chargesPerDay}/day`,
-            quantity: daysAdmitted,
-            unitPrice: admission.room.chargesPerDay,
-            total: roomCharges,
-            type: "room",
-          },
-        })
-
-        invoiceId = newInvoice.id
-      }
 
       const [updatedAdmission] = await prisma.$transaction([
         prisma.admission.update({
@@ -168,7 +116,21 @@ export async function PUT(
         }),
       ])
 
-      return NextResponse.json({ ...updatedAdmission, invoiceId })
+      // Complete the originating OPD consultation (Phase 6): when the doctor
+      // discharges the patient, the appointment that led to this admission is
+      // marked completed. Best-effort — never blocks the discharge itself.
+      if (admission.appointmentId) {
+        try {
+          await prisma.appointment.update({
+            where: { id: admission.appointmentId },
+            data: { status: "completed" },
+          })
+        } catch (e) {
+          console.error("Failed to complete originating appointment on discharge:", e)
+        }
+      }
+
+      return NextResponse.json({ ...updatedAdmission, invoiceId: existingInvoice?.id ?? null })
     }
 
     const parsed = updateSchema.safeParse(body)

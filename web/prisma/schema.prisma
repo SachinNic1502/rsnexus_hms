@@ -383,6 +383,14 @@ model Admission {
   dischargeSummary  String?
   finalDiagnosis    String?
   followUpDate      DateTime?
+  // Expected length of stay (in days) entered by the doctor at admission time.
+  // Purely informational — the patient is only discharged when the doctor
+  // explicitly discharges, never automatically when this expires.
+  expectedStayDays  Int?
+  // Optional link back to the OPD appointment/consultation that led to this
+  // admission, so discharge can complete the originating consultation.
+  appointmentId     String?         @db.ObjectId
+  consultationId    String?         @db.ObjectId
   createdAt         DateTime        @default(now())
   updatedAt         DateTime        @updatedAt
 
@@ -433,6 +441,10 @@ model Invoice {
   total         Float
   status        InvoiceStatus @default(pending)
   createdAt     DateTime      @default(now())
+  // Payment due date. Defaults to invoiceDate + 30 days (net-30) at creation.
+  // Nullable so pre-existing invoices remain valid; the UI falls back to
+  // createdAt + 30 days when this is not set.
+  dueDate       DateTime?
   paidAt        DateTime?
 
   patient       Patient       @relation(fields: [patientId], references: [id])

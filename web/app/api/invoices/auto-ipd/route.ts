@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { handleApiError } from "@/lib/error-handler"
+import { computeDueDate } from "@/lib/utils"
 
 export async function POST(request: NextRequest) {
   try {
@@ -145,6 +146,7 @@ export async function POST(request: NextRequest) {
         tax: 0,
         discount: 0,
         total: subtotal,
+        dueDate: computeDueDate(),
         items: {
           create: items.map((item) => ({
             description: item.description,

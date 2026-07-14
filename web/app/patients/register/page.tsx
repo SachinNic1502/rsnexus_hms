@@ -27,6 +27,7 @@ import {
 import Link from "next/link";
 import { patientSchema, appointmentSchema } from "@/lib/validations";
 import { useToast } from "@/components/ui/toast";
+import { useAuth } from "@/lib/auth-context";
 
 async function safeFetchJson(url: string): Promise<Record<string, unknown>[]> {
   try {
@@ -52,7 +53,13 @@ function PatientRegistrationForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
+  const { user } = useAuth();
   const searchRef = useRef<HTMLInputElement>(null);
+  // Nurses register new patients directly on this page and don't search for
+  // existing ones here. If a patient is ever prefilled via query params
+  // (e.g. a future "Schedule Visit" link), that selected-patient view still
+  // shows as normal — only the manual search box is hidden.
+  const isNurse = user?.role === "nurse";
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -340,7 +347,9 @@ function PatientRegistrationForm() {
           </div>
         )}
 
-        {/* Patient Search / Selection */}
+        {/* Patient Search / Selection — hidden for nurses when no patient is
+            already selected; they always register a new patient here. */}
+        {(!isNurse || selectedPatient) && (
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-semibold text-gray-700 uppercase tracking-wide flex items-center gap-2">
@@ -421,6 +430,7 @@ function PatientRegistrationForm() {
             )}
           </CardContent>
         </Card>
+        )}
 
         {/* New Patient Registration (only when no existing patient selected) */}
         {!selectedPatient && (

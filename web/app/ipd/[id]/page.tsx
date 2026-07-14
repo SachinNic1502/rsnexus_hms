@@ -8,10 +8,12 @@ import { Badge } from '@/components/ui/badge'
 import { ArrowLeft, BedDouble, Stethoscope, FileText, Activity, Calendar, Loader2, Pill } from 'lucide-react'
 import Link from 'next/link'
 import { useToast } from '@/components/ui/toast'
+import { useAuth } from '@/lib/auth-context'
 
 export default function AdmissionDetailPage() {
   const params = useParams()
   const { toast } = useToast()
+  const { hasRole } = useAuth()
   const [admission, setAdmission] = useState<any>(null)
   const [loading, setLoading] = useState(true)
 
@@ -43,7 +45,9 @@ export default function AdmissionDetailPage() {
             {admission.status === 'admitted' && (
               <>
                 <Link href={`/ipd/${params.id}/daily-rounds`}><Button variant="outline"><Activity className="mr-2 h-4 w-4" /> Daily Round</Button></Link>
-                <Link href={`/ipd/${params.id}/discharge`}><Button><FileText className="mr-2 h-4 w-4" /> Discharge</Button></Link>
+                {hasRole(['doctor', 'nurse']) && (
+                  <Link href={`/ipd/${params.id}/discharge`}><Button><FileText className="mr-2 h-4 w-4" /> Discharge</Button></Link>
+                )}
               </>
             )}
           </div>
@@ -68,6 +72,17 @@ export default function AdmissionDetailPage() {
             <div className="flex justify-between"><span className="text-gray-600">Room/Bed</span><span>{admission.room.roomNumber} / {admission.bed.bedNumber}</span></div>
             <div className="flex justify-between"><span className="text-gray-600">Admitted</span><span>{new Date(admission.admissionDate).toLocaleDateString()}</span></div>
             <div className="flex justify-between"><span className="text-gray-600">Days</span><span className="font-medium">{daysAdmitted}</span></div>
+            {admission.expectedStayDays ? (
+              <div className="flex justify-between">
+                <span className="text-gray-600">Expected Stay</span>
+                <span className="font-medium">
+                  {admission.expectedStayDays} days
+                  {admission.status === 'admitted' && daysAdmitted > admission.expectedStayDays && (
+                    <Badge variant="warning" className="ml-2">Exceeded</Badge>
+                  )}
+                </span>
+              </div>
+            ) : null}
             <div className="flex justify-between"><span className="text-gray-600">Status</span><Badge variant={admission.status === 'admitted' ? 'default' : 'secondary'}>{admission.status}</Badge></div>
           </CardContent>
         </Card>
@@ -117,7 +132,9 @@ export default function AdmissionDetailPage() {
                     <div className="flex items-center gap-4">
                       <span className="font-medium">₹{inv.total.toLocaleString()}</span>
                       <Badge variant={inv.status === 'paid' ? 'default' : 'destructive'}>{inv.status}</Badge>
-                      <Link href={`/billing/${inv.id}/payment`}><Button size="sm" variant="outline">Pay</Button></Link>
+                      {hasRole(['billing_staff', 'receptionist', 'nurse']) && (
+                        <Link href={`/billing/${inv.id}/payment`}><Button size="sm" variant="outline">Pay</Button></Link>
+                      )}
                     </div>
                   </div>
                 )

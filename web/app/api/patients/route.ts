@@ -29,6 +29,22 @@ export async function GET(request: NextRequest) {
         _count: {
           select: { appointments: true, admissions: true },
         },
+        // Latest appointment — used to derive the patient's current workflow
+        // status on the Patients list (Scheduled / In Queue / In Progress /
+        // Completed). Additive, does not change existing fields.
+        appointments: {
+          where: { isDeleted: { isSet: false } },
+          orderBy: [{ date: "desc" }, { createdAt: "desc" }],
+          take: 1,
+          select: { status: true, date: true },
+        },
+        // Active (not-yet-discharged) admissions — an active admission means
+        // the patient is currently an inpatient (IPD).
+        admissions: {
+          where: { status: "admitted" },
+          select: { id: true },
+          take: 1,
+        },
       },
     })
 

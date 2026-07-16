@@ -95,7 +95,9 @@ export default function UsersPage() {
                 <div><label className="text-sm font-medium">Email *</label><Input type="email" {...register('email')} />{errors.email && <p className="text-xs text-red-500 mt-1">{errors.email.message}</p>}</div>
                 <div><label className="text-sm font-medium">{editing ? 'New Password (blank = keep)' : 'Password *'}</label><Input type="password" {...register('password')} placeholder={editing ? '••••••••' : ''} />{errors.password && <p className="text-xs text-red-500 mt-1">{errors.password.message}</p>}</div>
                 <div><label className="text-sm font-medium">Role *</label><select {...register('role')} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
-                  {roles.map(r => <option key={r} value={r}>{r.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}</option>)}
+                  {/* Doctor accounts are managed in Settings → Doctors (so a
+                      linked doctor profile is created); excluded here. */}
+                  {roles.filter(r => r !== 'doctor').map(r => <option key={r} value={r}>{r.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}</option>)}
                 </select>{errors.role && <p className="text-xs text-red-500 mt-1">{errors.role.message}</p>}</div>
               </div>
               <div className="flex gap-2">

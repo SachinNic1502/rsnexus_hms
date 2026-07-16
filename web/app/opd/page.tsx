@@ -32,9 +32,9 @@ interface Admission {
   status: string
   patient: { name: string; uhid: string; id: string }
   doctor: { user: { name: string }; id: string }
-  ward: { name: string }
-  room: { roomNumber: string }
-  bed: { bedNumber: string }
+  ward: { name: string } | null
+  room: { roomNumber: string } | null
+  bed: { bedNumber: string } | null
 }
 
 const getStatusColor = (status: string) => {
@@ -223,7 +223,11 @@ export default function OPDPage() {
                           </div>
                           <div className="flex items-center gap-4 text-sm text-gray-600 mt-1">
                             <span className="flex items-center gap-1"><Stethoscope className="h-3 w-3" /> Dr. {a.doctor.user.name}</span>
-                            <span>{a.ward.name} - Room {a.room.roomNumber}, Bed {a.bed.bedNumber}</span>
+                            {a.bed ? (
+                              <span>{a.ward?.name} - Room {a.room?.roomNumber}, Bed {a.bed.bedNumber}</span>
+                            ) : (
+                              <span className="text-amber-600">Awaiting bed allocation</span>
+                            )}
                           </div>
                         </div>
                       </div>

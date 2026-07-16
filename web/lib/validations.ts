@@ -39,16 +39,22 @@ export const consultationSchema = z.object({
 })
 
 // ─── Prescription ────────────────────────────────────────
+// NOTE: The prescription API (app/api/prescriptions/route.ts) defines its own
+// request schema. This shared schema mirrors the real captured fields
+// (name/dose/instructions; frequency & duration are optional and not currently
+// captured by the form) so it does not misrepresent the contract.
 export const prescriptionItemSchema = z.object({
-  medicineId: z.string().min(1, 'Medicine is required'),
-  dosage: z.string().min(1, 'Dosage is required'),
-  frequency: z.string().min(1, 'Frequency is required'),
-  duration: z.string().min(1, 'Duration is required'),
+  medicineId: z.string().optional().or(z.literal('')),
+  name: z.string().min(1, 'Medicine name is required'),
+  dose: z.string().optional().or(z.literal('')),
+  frequency: z.string().optional().or(z.literal('')),
+  duration: z.string().optional().or(z.literal('')),
   instructions: z.string().optional().or(z.literal('')),
 })
 
 export const prescriptionSchema = z.object({
   patientId: z.string().min(1, 'Patient is required'),
+  doctorId: z.string().min(1, 'Doctor is required'),
   consultationId: z.string().optional().or(z.literal('')),
   medicines: z.array(prescriptionItemSchema).min(1, 'At least one medicine required'),
 })
@@ -56,9 +62,9 @@ export const prescriptionSchema = z.object({
 // ─── Invoice / Billing ───────────────────────────────────
 export const invoiceItemSchema = z.object({
   description: z.string().min(1, 'Description is required'),
-  quantity: z.number().min(1, 'Quantity must be at least 1'),
+  quantity: z.number().int('Quantity must be a whole number').min(1, 'Quantity must be at least 1'),
   unitPrice: z.number().min(0, 'Price must be positive'),
-  type: z.string().min(1, 'Type is required'),
+  type: z.enum(['service', 'medicine', 'lab', 'room', 'other']),
 })
 
 export const invoiceSchema = z.object({
@@ -114,17 +120,28 @@ export const roomSchema = z.object({
 })
 
 // ─── Admission ───────────────────────────────────────────
+// Ward / Room / Bed are optional at admission time — the doctor admits the
+// patient without a bed, and a nurse allocates one later via Bed Allocation.
 export const admissionSchema = z.object({
   patientId: z.string().min(1, 'Patient is required'),
   doctorId: z.string().min(1, 'Doctor is required'),
-  wardId: z.string().min(1, 'Ward is required'),
-  roomId: z.string().min(1, 'Room is required'),
-  bedId: z.string().min(1, 'Bed is required'),
+  wardId: z.string().optional().or(z.literal('')),
+  roomId: z.string().optional().or(z.literal('')),
+  bedId: z.string().optional().or(z.literal('')),
   // Expected length of stay in days (optional, informational only).
   expectedStayDays: z.union([z.string(), z.number()]).optional().or(z.literal('')),
   // Optional link back to the originating OPD appointment/consultation.
   appointmentId: z.string().optional().or(z.literal('')),
   consultationId: z.string().optional().or(z.literal('')),
+})
+
+// ─── Bed Allocation (Nurse) ──────────────────────────────
+// Used by the nurse to assign a Ward, Room and Bed to an already-admitted
+// patient. All three are mandatory — you cannot save a partial allocation.
+export const allocateBedSchema = z.object({
+  wardId: z.string().min(1, 'Ward is required'),
+  roomId: z.string().min(1, 'Room is required'),
+  bedId: z.string().min(1, 'Bed is required'),
 })
 
 // ─── Daily Round ─────────────────────────────────────────

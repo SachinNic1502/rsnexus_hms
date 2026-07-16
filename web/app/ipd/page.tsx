@@ -15,9 +15,9 @@ interface Admission {
   status: string
   patient: { name: string; uhid: string }
   doctor: { user: { name: string } }
-  ward: { name: string }
-  room: { roomNumber: string }
-  bed: { bedNumber: string }
+  ward: { name: string } | null
+  room: { roomNumber: string } | null
+  bed: { bedNumber: string } | null
 }
 
 export default function IPDPage() {
@@ -90,7 +90,11 @@ export default function IPDPage() {
                       <div className="flex items-center gap-6 text-sm text-gray-600">
                         <span>{a.patient.uhid}</span>
                         <span>Dr. {a.doctor.user.name}</span>
-                        <span>{a.ward.name} - Room {a.room.roomNumber}, Bed {a.bed.bedNumber}</span>
+                        {a.bed ? (
+                          <span>{a.ward?.name} - Room {a.room?.roomNumber}, Bed {a.bed.bedNumber}</span>
+                        ) : (
+                          <span className="text-amber-600">Awaiting bed allocation</span>
+                        )}
                       </div>
                     </div>
                   </div>

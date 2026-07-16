@@ -44,7 +44,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Validation failed", details: parsed.error.issues }, { status: 400 })
     }
 
-    const { patientId, doctorId, wardId, roomId, bedId } = parsed.data
+    const { patientId, doctorId } = parsed.data
+    // Ward / room / bed are optional at admission time. They are normally left
+    // empty here (the nurse allocates a bed afterwards), but we still accept
+    // them for backward compatibility if a caller provides a full allocation.
+    const wardId = parsed.data.wardId || undefined
+    const roomId = parsed.data.roomId || undefined
+    const bedId = parsed.data.bedId || undefined
     // Optional informational / linkage fields (backward-compatible additions).
     const expectedStayRaw = parsed.data.expectedStayDays
     const expectedStayDays =
@@ -68,14 +74,17 @@ export async function POST(request: NextRequest) {
     }
     const admissionNumber = `ADM-${new Date().getFullYear()}-${String(nextNumber).padStart(3, "0")}`
 
-    const [admission] = await prisma.$transaction([
-      prisma.admission.create({
+    // Create the admission and — only when a bed was supplied up-front — mark
+    // that bed occupied, atomically. Normally no bed is provided here (the
+    // nurse allocates one later via Bed Allocation).
+    const admission = await prisma.$transaction(async (tx) => {
+      const created = await tx.admission.create({
         data: {
           patientId,
           doctorId,
-          wardId,
-          roomId,
-          bedId,
+          ...(wardId ? { wardId } : {}),
+          ...(roomId ? { roomId } : {}),
+          ...(bedId ? { bedId } : {}),
           admissionNumber,
           ...(expectedStayDays !== undefined ? { expectedStayDays } : {}),
           ...(appointmentId ? { appointmentId } : {}),
@@ -88,12 +97,30 @@ export async function POST(request: NextRequest) {
           room: true,
           bed: true,
         },
-      }),
-      prisma.bed.update({
-        where: { id: bedId },
-        data: { status: "occupied", currentPatientId: patientId },
-      }),
-    ])
+      })
+
+      if (bedId) {
+        // Only grab the bed if it is currently available. updateMany returns a
+        // count so we can detect a race / already-occupied bed and abort the
+        // whole transaction rather than silently double-booking it.
+        const grab = await tx.bed.updateMany({
+          where: { id: bedId, status: "available" },
+          data: { status: "occupied", currentPatientId: patientId },
+        })
+        if (grab.count === 0) {
+          throw new Error("BED_NOT_AVAILABLE")
+        }
+      }
+
+      return created
+    }).catch((e) => {
+      if (e instanceof Error && e.message === "BED_NOT_AVAILABLE") return "BED_NOT_AVAILABLE" as const
+      throw e
+    })
+
+    if (admission === "BED_NOT_AVAILABLE") {
+      return NextResponse.json({ error: "Selected bed is no longer available" }, { status: 409 })
+    }
 
     return NextResponse.json(admission, { status: 201 })
   } catch (error) {

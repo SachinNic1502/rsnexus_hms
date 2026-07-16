@@ -35,6 +35,17 @@ export async function POST(request: NextRequest) {
 
     const { name, email, password, role, isActive } = parsed.data
 
+    // Doctor accounts must be created through the Doctors management flow
+    // (/api/doctors), which also creates the linked Doctor record. Creating a
+    // role=doctor user here would leave an orphan user with no Doctor row —
+    // unbookable and invisible in the doctor directory.
+    if (role === "doctor") {
+      return NextResponse.json(
+        { error: "Create doctors from Settings → Doctors so a doctor profile is created too" },
+        { status: 400 }
+      )
+    }
+
     const existing = await prisma.user.findUnique({ where: { email } })
     if (existing) return NextResponse.json({ error: "Email already exists" }, { status: 400 })
 

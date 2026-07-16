@@ -47,7 +47,9 @@ export const authOptions: NextAuthOptions = {
           throw new Error("Invalid credentials")
         }
 
-        if (!user.isActive) {
+        // Reject inactive OR soft-deleted accounts. A "deleted" employee must
+        // not be able to authenticate even though their row still exists.
+        if (!user.isActive || user.isDeleted) {
           throw new Error("Invalid credentials")
         }
 

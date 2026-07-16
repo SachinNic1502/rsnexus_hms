@@ -348,7 +348,7 @@ export default function PatientDetailPage() {
             </div>
             <div>
               <p className="text-sm text-gray-600">Age</p>
-              <p className="font-medium">{patient.age || "N/A"} years</p>
+              <p className="font-medium">{patient.age ?? "N/A"} years</p>
             </div>
             <div>
               <p className="text-sm text-gray-600">Date of Birth</p>
@@ -451,12 +451,11 @@ export default function PatientDetailPage() {
                 const consultation = consultationByAppointment.get(visit.id);
                 const invoices = invoicesByAppointment.get(visit.id) || [];
                 const prescription = consultation?.prescription;
-                const nurseTimingAdded = prescription?.medicines?.some(
-                  (m: any) =>
-                    m.timing || m.foodInstructions || m.usageInstructions,
-                );
+                // A nurse may only generate the bill for a visit the doctor
+                // has not prescribed medicines for; once a prescription
+                // exists, billing for that visit is left to front desk/billing staff.
                 const canBillThisVisit =
-                  isFrontDesk || (isNurse && nurseTimingAdded);
+                  isFrontDesk || (isNurse && !prescription);
                 const vitalsParts = consultation
                   ? [
                       consultation.bloodPressure

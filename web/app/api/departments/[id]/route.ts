@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { requireRole } from "@/lib/api-utils"
+
+const ADMIN_ROLES = ["super_admin", "hospital_admin"]
 
 export async function GET(
   request: NextRequest,
@@ -27,6 +30,9 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { error } = await requireRole(request, ADMIN_ROLES)
+    if (error) return error
+
     const { id } = await params
     const body = await request.json()
 

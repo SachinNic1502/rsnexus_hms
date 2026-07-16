@@ -80,6 +80,14 @@ export async function PUT(
         return NextResponse.json({ error: "Admission not found" }, { status: 404 })
       }
 
+      // Idempotency / safety: never discharge an admission that is already
+      // discharged. Re-running discharge would otherwise free the bed a second
+      // time — and if that physical bed had since been re-allocated to a new
+      // patient, it would silently un-book them (bed-state desync + data loss).
+      if (admission.status !== "admitted") {
+        return NextResponse.json({ error: "Patient is already discharged" }, { status: 409 })
+      }
+
       const dischargeDate = new Date()
 
       // NOTE: The IPD invoice is intentionally NOT created here. Invoice
@@ -92,8 +100,12 @@ export async function PUT(
       // untouched so auto-ipd's own dedup guard remains the single authority.
       const existingInvoice = admission.invoices.find((inv) => inv.type === "IPD")
 
-      const [updatedAdmission] = await prisma.$transaction([
-        prisma.admission.update({
+      // Free the assigned bed on discharge — but only if one was ever
+      // allocated. A patient can be discharged while still awaiting bed
+      // allocation, in which case there is no bed to release. Done atomically
+      // so admission status and bed availability never drift apart.
+      const updatedAdmission = await prisma.$transaction(async (tx) => {
+        const updated = await tx.admission.update({
           where: { id },
           data: {
             status: "discharged",
@@ -109,12 +121,19 @@ export async function PUT(
             room: true,
             bed: true,
           },
-        }),
-        prisma.bed.update({
-          where: { id: admission.bedId },
-          data: { status: "available", currentPatientId: null },
-        }),
-      ])
+        })
+
+        if (admission.bedId) {
+          // Only release the bed if it still belongs to this patient. Guards
+          // against freeing a bed that was already re-allocated to someone else.
+          await tx.bed.updateMany({
+            where: { id: admission.bedId, currentPatientId: admission.patientId },
+            data: { status: "available", currentPatientId: null },
+          })
+        }
+
+        return updated
+      })
 
       // Complete the originating OPD consultation (Phase 6): when the doctor
       // discharges the patient, the appointment that led to this admission is

@@ -2,9 +2,13 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { handleApiError } from "@/lib/error-handler"
 import { computeDueDate } from "@/lib/utils"
+import { requireAuth } from "@/lib/api-utils"
 
 export async function POST(request: NextRequest) {
   try {
+    const { error, user } = await requireAuth(request)
+    if (error) return error
+
     const { consultationId, extraCharges = [] } = await request.json()
     if (!consultationId) {
       return NextResponse.json({ error: "consultationId is required" }, { status: 400 })
@@ -41,6 +45,16 @@ export async function POST(request: NextRequest) {
       if (existingOpd) {
         return NextResponse.json(existingOpd, { status: 200 })
       }
+    }
+
+    // A nurse may only generate the bill when the doctor has not prescribed
+    // medicines for this consultation; once a prescription exists, billing
+    // is left to front desk/billing staff.
+    if (user.role === "nurse" && consultation.prescription) {
+      return NextResponse.json(
+        { error: "Nurses can only generate the bill when no prescription has been added" },
+        { status: 403 }
+      )
     }
 
     const items: { description: string; quantity: number; unitPrice: number; type: string }[] = []

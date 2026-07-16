@@ -10,6 +10,10 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const status = searchParams.get("status")
     const date = searchParams.get("date")
+    // Optional date range (inclusive) used by the weekly calendar to load a
+    // whole week at once. Takes precedence over the single `date` param.
+    const from = searchParams.get("from")
+    const to = searchParams.get("to")
     const doctorId = searchParams.get("doctorId")
     // Opt-in: alongside the given date, also surface earlier appointments
     // that were never resolved (still scheduled/waiting/in_progress), so a
@@ -22,7 +26,13 @@ export async function GET(request: NextRequest) {
     if (status && status !== "all") {
       where.status = status as 'scheduled' | 'waiting' | 'in_progress' | 'completed' | 'cancelled'
     }
-    if (date) {
+    if (from && to) {
+      const rangeStart = new Date(from)
+      rangeStart.setHours(0, 0, 0, 0)
+      const rangeEnd = new Date(to)
+      rangeEnd.setHours(23, 59, 59, 999)
+      where.date = { gte: rangeStart, lte: rangeEnd }
+    } else if (date) {
       const dayStart = new Date(date)
       dayStart.setHours(0, 0, 0, 0)
       const dayEnd = new Date(date)

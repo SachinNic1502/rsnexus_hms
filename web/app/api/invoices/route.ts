@@ -70,6 +70,9 @@ export async function POST(request: NextRequest) {
     const invoiceNumber = `INV-${new Date().getFullYear()}-${String(nextNumber).padStart(3, "0")}`
 
     const subtotal = items.reduce((sum: number, item: any) => sum + item.quantity * item.unitPrice, 0)
+    if (discount > subtotal + tax) {
+      return NextResponse.json({ error: "Discount cannot exceed subtotal + tax" }, { status: 400 })
+    }
     const total = subtotal + tax - discount
 
     const invoice = await prisma.invoice.create({

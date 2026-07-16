@@ -50,12 +50,28 @@ export default function CalendarPage() {
     fetchDoctors()
   }, [currentDate])
 
+  // Local YYYY-MM-DD (avoids the UTC shift that toISOString() introduces west
+  // of UTC, which pushed the whole week onto the wrong day).
+  const toLocalDateStr = (d: Date) => {
+    const y = d.getFullYear()
+    const m = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    return `${y}-${m}-${day}`
+  }
+
   const fetchAppointments = async () => {
     setLoading(true)
     try {
-      const dateStr = currentDate.toISOString().split('T')[0]
-      const res = await fetch(`/api/appointments?date=${dateStr}`)
-      if (res.ok) setAppointments(await res.json())
+      // Load the whole visible week, not just the current day — the grid
+      // renders 7 columns and previously only one was ever populated.
+      const week = getWeekDays()
+      const from = toLocalDateStr(week[0])
+      const to = toLocalDateStr(week[week.length - 1])
+      const res = await fetch(`/api/appointments?from=${from}&to=${to}`)
+      if (res.ok) {
+        const data = await res.json()
+        setAppointments(Array.isArray(data) ? data : [])
+      }
     } catch { toast('Failed to fetch appointments', 'error') }
     finally { setLoading(false) }
   }
@@ -80,7 +96,7 @@ export default function CalendarPage() {
   }
 
   const getAppointmentsForDay = (date: Date) => {
-    const dateStr = date.toISOString().split('T')[0]
+    const dateStr = toLocalDateStr(date)
     let filtered = appointments.filter(a => a.date.split('T')[0] === dateStr)
     if (selectedDoctor !== 'all') {
       filtered = filtered.filter(a => a.doctor.id === selectedDoctor)

@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { hashSync } from "bcryptjs"
 import { z } from "zod"
+import { requireRole } from "@/lib/api-utils"
+
+const ADMIN_ROLES = ["super_admin", "hospital_admin"]
 
 const createNurseSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
@@ -22,7 +25,7 @@ const nurseSelect = {
 export async function GET() {
   try {
     const nurses = await prisma.user.findMany({
-      where: { role: "nurse" },
+      where: { role: "nurse", isDeleted: { isSet: false } },
       select: nurseSelect,
       orderBy: { name: "asc" },
     })
@@ -35,6 +38,9 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+    const { error } = await requireRole(request, ADMIN_ROLES)
+    if (error) return error
+
     const body = await request.json()
     const parsed = createNurseSchema.safeParse(body)
     if (!parsed.success) {

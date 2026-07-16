@@ -111,7 +111,9 @@ export default function PatientsPage() {
 
   const getBloodGroupDisplay = (group: string | null) => {
     if (!group) return 'N/A'
-    return group.replace('_', '+')
+    // e.g. "A_positive" -> "A+", "O_negative" -> "O-". A plain replace('_','+')
+    // wrongly produced "A+positive"; map the suffix explicitly.
+    return group.replace('_positive', '+').replace('_negative', '-')
   }
 
   // Client-side status filter — applied on top of the existing search
@@ -227,7 +229,7 @@ export default function PatientsPage() {
                           </div>
                           <div className="flex items-center gap-1">
                             <User className="h-4 w-4" />
-                            {patient.gender}, {patient.age || 'N/A'} years
+                            {patient.gender}, {patient.age ?? 'N/A'} years
                           </div>
                           <div>
                             Blood Group: {getBloodGroupDisplay(patient.bloodGroup)}

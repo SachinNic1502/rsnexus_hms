@@ -21,9 +21,9 @@ interface WardStats {
   name: string
   type: string
   totalBeds: number
-  occupied: number
-  available: number
-  maintenance: number
+  occupiedBeds: number
+  availableBeds: number
+  maintenanceBeds: number
   occupancyRate: number
 }
 
@@ -51,9 +51,9 @@ export default function BedDashboardPage() {
   }
 
   const totalBeds = wardStats.reduce((s, w) => s + w.totalBeds, 0)
-  const totalOccupied = wardStats.reduce((s, w) => s + w.occupied, 0)
-  const totalAvailable = wardStats.reduce((s, w) => s + w.available, 0)
-  const totalMaintenance = wardStats.reduce((s, w) => s + w.maintenance, 0)
+  const totalOccupied = wardStats.reduce((s, w) => s + w.occupiedBeds, 0)
+  const totalAvailable = wardStats.reduce((s, w) => s + w.availableBeds, 0)
+  const totalMaintenance = wardStats.reduce((s, w) => s + w.maintenanceBeds, 0)
   const occupancyRate = totalBeds > 0 ? Math.round((totalOccupied / totalBeds) * 100) : 0
 
   let filteredBeds = beds
@@ -174,10 +174,10 @@ export default function BedDashboardPage() {
               </div>
               <div className="flex items-center gap-6 mb-2">
                 <span className="text-sm"><span className="font-bold">{ward.totalBeds}</span> total</span>
-                <span className="text-sm text-green-600"><span className="font-bold">{ward.available}</span> available</span>
-                <span className="text-sm text-red-600"><span className="font-bold">{ward.occupied}</span> occupied</span>
-                {ward.maintenance > 0 && (
-                  <span className="text-sm text-yellow-600"><span className="font-bold">{ward.maintenance}</span> maintenance</span>
+                <span className="text-sm text-green-600"><span className="font-bold">{ward.availableBeds}</span> available</span>
+                <span className="text-sm text-red-600"><span className="font-bold">{ward.occupiedBeds}</span> occupied</span>
+                {ward.maintenanceBeds > 0 && (
+                  <span className="text-sm text-yellow-600"><span className="font-bold">{ward.maintenanceBeds}</span> maintenance</span>
                 )}
               </div>
               <div className="w-full bg-gray-200 rounded-full h-3">

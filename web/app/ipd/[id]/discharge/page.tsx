@@ -208,7 +208,9 @@ export default function DischargePage() {
   }
 
   const daysAdmitted = Math.max(1, Math.ceil((Date.now() - new Date(admission.admissionDate).getTime()) / (1000 * 60 * 60 * 24)))
-  const estimatedRoomCharges = admission.room.chargesPerDay * daysAdmitted
+  // A bed may never have been allocated (nurse step skipped) — no room charge.
+  const roomRate = admission.room?.chargesPerDay ?? 0
+  const estimatedRoomCharges = roomRate * daysAdmitted
   const extraChargesTotal = extraCharges.reduce((sum, c) => sum + c.quantity * c.unitPrice, 0)
 
   return (
@@ -298,11 +300,11 @@ export default function DischargePage() {
               <div className="flex justify-between"><span className="text-gray-600">Patient</span><span className="font-medium">{admission.patient.name}</span></div>
               <div className="flex justify-between"><span className="text-gray-600">UHID</span><span>{admission.patient.uhid}</span></div>
               <div className="flex justify-between"><span className="text-gray-600">Doctor</span><span>Dr. {admission.doctor.user.name}</span></div>
-              <div className="flex justify-between"><span className="text-gray-600">Ward</span><span>{admission.ward.name}</span></div>
-              <div className="flex justify-between"><span className="text-gray-600">Room/Bed</span><span>{admission.room.roomNumber} / {admission.bed.bedNumber}</span></div>
+              <div className="flex justify-between"><span className="text-gray-600">Ward</span><span>{admission.ward?.name ?? '—'}</span></div>
+              <div className="flex justify-between"><span className="text-gray-600">Room/Bed</span><span>{admission.bed ? `${admission.room?.roomNumber} / ${admission.bed.bedNumber}` : 'Not allocated'}</span></div>
               <hr />
               <div className="flex justify-between"><span className="text-gray-600">Days Admitted</span><span className="font-medium">{daysAdmitted}</span></div>
-              <div className="flex justify-between"><span className="text-gray-600">Room Rate</span><span>₹{admission.room.chargesPerDay}/day</span></div>
+              <div className="flex justify-between"><span className="text-gray-600">Room Rate</span><span>₹{roomRate}/day</span></div>
               <div className="flex justify-between"><span className="text-gray-600">Room Charges</span><span className="font-medium">₹{estimatedRoomCharges.toLocaleString()}</span></div>
               <div className="flex justify-between"><span className="text-gray-600">Daily Rounds</span><span>{admission.dailyRounds?.length || 0}</span></div>
               {extraChargesTotal > 0 && <div className="flex justify-between"><span className="text-gray-600">Extra Charges</span><span className="font-medium">₹{extraChargesTotal.toLocaleString()}</span></div>}

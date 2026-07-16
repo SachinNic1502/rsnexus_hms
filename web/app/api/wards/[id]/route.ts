@@ -21,10 +21,15 @@ export async function GET(
       where: { id },
       include: {
         rooms: {
+          where: { isDeleted: { isSet: false } },
           include: {
             beds: {
+              where: { isDeleted: { isSet: false } },
               include: {
-                admission: {
+                // Current occupant only (a bed has many admissions over time).
+                admissions: {
+                  where: { status: "admitted" },
+                  take: 1,
                   include: { patient: true, doctor: { include: { user: true } } },
                 },
               },

@@ -72,9 +72,9 @@ interface RecentAppointment {
 interface RecentAdmission {
   id: string
   patient: string
-  ward: string
-  room: string
-  bed: string
+  ward: string | null
+  room: string | null
+  bed: string | null
   admittedAt: string
 }
 
@@ -425,7 +425,9 @@ export default function DashboardPage() {
                       <div>
                         <p className="font-medium text-sm">{admission.patient}</p>
                         <p className="text-xs text-gray-600">
-                          {admission.ward} - Room {admission.room}, Bed {admission.bed}
+                          {admission.bed
+                            ? `${admission.ward} - Room ${admission.room}, Bed ${admission.bed}`
+                            : 'Awaiting bed allocation'}
                         </p>
                       </div>
                     </div>

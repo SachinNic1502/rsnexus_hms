@@ -1,10 +1,17 @@
-import { NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
+import { getToken } from "next-auth/jwt"
 import { prisma } from "@/lib/prisma"
 import { handleApiError } from "@/lib/error-handler"
 import { computeDueDate } from "@/lib/utils"
 
-export async function GET() {
+// Roles allowed to see revenue / outstanding / pending-bill figures. Others get
+// the operational stats only — matches how the dashboard UI hides these cards.
+const BILLING_VIEW_ROLES = ["super_admin", "hospital_admin", "billing_staff", "receptionist"]
+
+export async function GET(request: NextRequest) {
   try {
+    const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET })
+    const canViewBilling = BILLING_VIEW_ROLES.includes(token?.role as string)
     const today = new Date()
     today.setHours(0, 0, 0, 0)
     const tomorrow = new Date(today)
@@ -122,16 +129,21 @@ export async function GET() {
         totalBeds,
         occupiedBeds,
         pendingBills,
-        pendingBillTotal: pendingBillTotal._sum.total || 0,
-        // Phase 8 billing/payment metrics
-        paidBills,
-        partialBills,
-        outstandingAmount,
-        dailyRevenue: dailyRevenueAgg._sum.amount || 0,
-        monthlyRevenue: monthlyRevenueAgg._sum.amount || 0,
+        // Financial figures are exposed only to billing-capable roles; other
+        // roles receive the operational stats without revenue/outstanding data.
+        ...(canViewBilling
+          ? {
+              pendingBillTotal: pendingBillTotal._sum.total || 0,
+              paidBills,
+              partialBills,
+              outstandingAmount,
+              dailyRevenue: dailyRevenueAgg._sum.amount || 0,
+              monthlyRevenue: monthlyRevenueAgg._sum.amount || 0,
+            }
+          : {}),
       },
-      // Pending-bills table data (invoice date, due date, days pending).
-      pendingInvoices,
+      // Pending-bills table data — billing roles only.
+      pendingInvoices: canViewBilling ? pendingInvoices : [],
       doctors: doctors.map((d) => ({
         id: d.id,
         name: d.user.name,
@@ -148,9 +160,10 @@ export async function GET() {
       recentAdmissions: recentAdmissions.map((a) => ({
         id: a.id,
         patient: a.patient.name,
-        ward: a.ward.name,
-        room: a.room.roomNumber,
-        bed: a.bed.bedNumber,
+        // Ward/room/bed are null until a nurse allocates a bed.
+        ward: a.ward?.name ?? null,
+        room: a.room?.roomNumber ?? null,
+        bed: a.bed?.bedNumber ?? null,
         admittedAt: a.admissionDate,
       })),
     })

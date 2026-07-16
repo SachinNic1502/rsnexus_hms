@@ -20,9 +20,6 @@ function IPDAdmitForm() {
   const [selectedPatient, setSelectedPatient] = useState<any>(null)
   const [departments, setDepartments] = useState<any[]>([])
   const [doctors, setDoctors] = useState<any[]>([])
-  const [wards, setWards] = useState<any[]>([])
-  const [rooms, setRooms] = useState<any[]>([])
-  const [beds, setBeds] = useState<any[]>([])
 
   // Optional link back to the originating OPD appointment/consultation when
   // this admission is started from the "Admit Patient" step of Finish
@@ -35,9 +32,6 @@ function IPDAdmitForm() {
 
   const [formData, setFormData] = useState({
     doctorId: searchParams.get('doctorId') || '',
-    wardId: '',
-    roomId: '',
-    bedId: '',
     // Pre-filled when the doctor already entered it on the Finish
     // Consultation modal's Admit Patient step; still editable here.
     expectedStayDays: searchParams.get('expectedStayDays') || '',
@@ -45,7 +39,6 @@ function IPDAdmitForm() {
 
   useEffect(() => {
     fetch('/api/departments').then(r => r.json()).then(d => setDepartments(Array.isArray(d) ? d : []))
-    fetch('/api/wards').then(r => r.json()).then(d => setWards(Array.isArray(d) ? d : []))
   }, [])
 
   useEffect(() => {
@@ -66,25 +59,6 @@ function IPDAdmitForm() {
       })
       .catch(() => { /* fall back to manual search */ })
   }, [searchParams])
-
-  useEffect(() => {
-    if (formData.wardId) {
-      const ward = wards.find((w: any) => w.id === formData.wardId)
-      if (ward) setRooms(ward.rooms || [])
-      setFormData(prev => ({ ...prev, roomId: '', bedId: '' }))
-    }
-  }, [formData.wardId, wards])
-
-  useEffect(() => {
-    if (formData.roomId) {
-      const room = rooms.find((r: any) => r.id === formData.roomId)
-      if (room) {
-        const availableBeds = (room.beds || []).filter((b: any) => b.status === 'available')
-        setBeds(availableBeds)
-      }
-      setFormData(prev => ({ ...prev, bedId: '' }))
-    }
-  }, [formData.roomId, rooms])
 
   useEffect(() => {
     if (patientSearch.length >= 2) {
@@ -116,9 +90,8 @@ function IPDAdmitForm() {
         body: JSON.stringify({
           patientId: selectedPatient.id,
           doctorId: formData.doctorId,
-          wardId: formData.wardId,
-          roomId: formData.roomId,
-          bedId: formData.bedId,
+          // Ward / room / bed are intentionally omitted here — a nurse assigns
+          // them afterwards via the Bed Allocation screen.
           expectedStayDays: formData.expectedStayDays,
           appointmentId: linkIds.appointmentId,
           consultationId: linkIds.consultationId,
@@ -199,28 +172,13 @@ function IPDAdmitForm() {
 
             <div>
               <h3 className="text-lg font-semibold mb-4">Bed Assignment</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Ward *</label>
-                  <select name="wardId" value={formData.wardId} onChange={handleChange} required className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
-                    <option value="">Select Ward</option>
-                    {wards.map((w: any) => <option key={w.id} value={w.id}>{w.name} ({w.availableBeds} beds available)</option>)}
-                  </select>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Room *</label>
-                  <select name="roomId" value={formData.roomId} onChange={handleChange} required disabled={!formData.wardId} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm disabled:opacity-50">
-                    <option value="">Select Room</option>
-                    {rooms.map((r: any) => <option key={r.id} value={r.id}>{r.roomNumber} ({r.type})</option>)}
-                  </select>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Bed *</label>
-                  <select name="bedId" value={formData.bedId} onChange={handleChange} required disabled={!formData.roomId} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm disabled:opacity-50">
-                    <option value="">Select Bed</option>
-                    {beds.map((b: any) => <option key={b.id} value={b.id}>Bed {b.bedNumber}</option>)}
-                  </select>
-                </div>
+              <div className="text-sm text-amber-800 bg-amber-50 border border-amber-200 p-4 rounded-md">
+                <p className="font-medium">A nurse will assign the ward, room and bed.</p>
+                <p className="mt-1 text-amber-700">
+                  Once admitted, this patient appears in the nurse&apos;s Bed Allocation
+                  screen where a ward, room and bed are assigned from the existing
+                  Ward Management structure.
+                </p>
               </div>
             </div>
 

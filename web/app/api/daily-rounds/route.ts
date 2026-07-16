@@ -2,14 +2,19 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { z } from "zod"
 
+// The daily-rounds form posts vitals as strings (empty when not filled). Treat
+// "" as undefined and coerce the rest so a string like "98.6" or a real number
+// both validate, mirroring how the consultation route handles vitals.
+const emptyToUndef = (v: unknown) => (v === "" || v === null ? undefined : v)
+
 const dailyRoundSchema = z.object({
   admissionId: z.string().min(1, "Admission is required"),
   doctorId: z.string().min(1, "Doctor is required"),
-  temperature: z.number().optional(),
+  temperature: z.preprocess(emptyToUndef, z.coerce.number().optional()),
   bloodPressure: z.string().optional().or(z.literal("")),
-  pulse: z.number().int().optional(),
-  respiratoryRate: z.number().int().optional(),
-  oxygenSaturation: z.number().int().optional(),
+  pulse: z.preprocess(emptyToUndef, z.coerce.number().int().optional()),
+  respiratoryRate: z.preprocess(emptyToUndef, z.coerce.number().int().optional()),
+  oxygenSaturation: z.preprocess(emptyToUndef, z.coerce.number().int().optional()),
   notes: z.string().min(1, "Notes are required"),
 })
 

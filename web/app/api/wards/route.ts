@@ -17,7 +17,20 @@ export async function GET() {
         rooms: {
           where: { isDeleted: { isSet: false } },
           include: {
-            beds: { where: { isDeleted: { isSet: false } } },
+            beds: {
+              where: { isDeleted: { isSet: false } },
+              include: {
+                // The bed's current occupant (if any), so the Ward Management
+                // screen shows the patient name on occupied beds. A bed has
+                // many admissions over its lifetime; only the admitted one is
+                // the live occupant.
+                admissions: {
+                  where: { status: "admitted" },
+                  take: 1,
+                  include: { patient: true, doctor: { include: { user: true } } },
+                },
+              },
+            },
           },
         },
       },
@@ -26,11 +39,24 @@ export async function GET() {
 
     const wardsWithStats = wards.map((ward) => {
       const allBeds = ward.rooms.flatMap((room) => room.beds)
+      const totalBeds = allBeds.length
+      const occupiedBeds = allBeds.filter((b) => b.status === "occupied").length
       return {
         ...ward,
-        totalBeds: allBeds.length,
+        rooms: ward.rooms.map((room) => ({
+          ...room,
+          beds: room.beds.map((bed) => {
+            // Expose the active admission as `admission` (singular) for the
+            // Ward Management UI, which reads bed.admission.patient.name.
+            const { admissions, ...rest } = bed
+            return { ...rest, admission: admissions[0] ?? null }
+          }),
+        })),
+        totalBeds,
         availableBeds: allBeds.filter((b) => b.status === "available").length,
-        occupiedBeds: allBeds.filter((b) => b.status === "occupied").length,
+        occupiedBeds,
+        maintenanceBeds: allBeds.filter((b) => b.status === "maintenance").length,
+        occupancyRate: totalBeds > 0 ? Math.round((occupiedBeds / totalBeds) * 100) : 0,
       }
     })
 

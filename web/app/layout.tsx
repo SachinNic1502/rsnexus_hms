@@ -6,8 +6,11 @@ import { Providers } from "./providers"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "Rs Nexus HMS",
+  title: "Jeevanti Hospitals",
   description: "Hospital Management System",
+  icons: {
+    icon: "/jeevanti-logo.jpg",
+  },
 }
 
 export default function RootLayout({

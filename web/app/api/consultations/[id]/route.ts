@@ -36,19 +36,30 @@ export async function PUT(
     const { id } = await params
     const body = await request.json()
 
+    // Parse a numeric vital: "" (cleared) -> null so Prisma unsets it, a valid
+    // value -> the number, and an absent field -> undefined (leave unchanged).
+    // Using truthiness alone would turn a cleared field into `undefined` and
+    // silently keep the old reading, and would also drop a legitimate 0.
+    const num = (v: unknown, int = false): number | null | undefined => {
+      if (v === undefined) return undefined
+      if (v === "" || v === null) return null
+      const n = int ? parseInt(v as string) : parseFloat(v as string)
+      return Number.isNaN(n) ? null : n
+    }
+
     const consultation = await prisma.consultation.update({
       where: { id },
       data: {
         chiefComplaint: body.chiefComplaint,
         symptoms: body.symptoms,
         diagnosis: body.diagnosis,
-        temperature: body.temperature ? parseFloat(body.temperature) : undefined,
+        temperature: num(body.temperature),
         bloodPressure: body.bloodPressure,
-        pulse: body.pulse ? parseInt(body.pulse) : undefined,
-        respiratoryRate: body.respiratoryRate ? parseInt(body.respiratoryRate) : undefined,
-        oxygenSaturation: body.oxygenSaturation ? parseInt(body.oxygenSaturation) : undefined,
-        weight: body.weight ? parseFloat(body.weight) : undefined,
-        height: body.height ? parseFloat(body.height) : undefined,
+        pulse: num(body.pulse, true),
+        respiratoryRate: num(body.respiratoryRate, true),
+        oxygenSaturation: num(body.oxygenSaturation, true),
+        weight: num(body.weight),
+        height: num(body.height),
         clinicalNotes: body.clinicalNotes,
       },
       include: {

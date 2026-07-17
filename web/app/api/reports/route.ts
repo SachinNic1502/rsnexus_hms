@@ -92,13 +92,13 @@ async function dailyReport(dateStr: string) {
       number: a.admissionNumber,
       patient: a.patient.name,
       doctor: `Dr. ${a.doctor.user.name}`,
-      ward: a.ward.name,
-      bed: a.bed.bedNumber,
+      ward: a.ward?.name ?? "Not assigned",
+      bed: a.bed?.bedNumber ?? "-",
     })),
     discharges: discharges.map((d) => ({
       number: d.admissionNumber,
       patient: d.patient.name,
-      ward: d.ward.name,
+      ward: d.ward?.name ?? "Not assigned",
     })),
     invoices: invoices.map((inv) => ({
       number: inv.invoiceNumber,
@@ -283,25 +283,27 @@ async function doctorPerformanceReport(month: string, doctorId?: string | null) 
         orderedAt: { gte: startDate, lt: endDate },
         ...(doctorId ? { doctorId } : {}),
       },
-      include: { doctor: { include: { user: true } }, tests: true },
+      include: { doctor: { include: { user: true, department: true } }, tests: true },
     }),
     prisma.prescription.findMany({
       where: {
         createdAt: { gte: startDate, lt: endDate },
         ...(doctorId ? { doctorId } : {}),
       },
-      include: { doctor: { include: { user: true } } },
+      include: { doctor: { include: { user: true, department: true } } },
     }),
   ])
 
   const doctorStats: any = {}
-  appointments.forEach((a) => {
-    const key = a.doctorId
-    if (!doctorStats[key]) {
-      doctorStats[key] = {
-        doctorId: key,
-        name: a.doctor.user.name,
-        department: a.doctor.department.name || "",
+  // Seed a doctor entry from any dataset the first time we see them, so a
+  // doctor with (e.g.) consultations but no booked appointments in the period
+  // still appears with their real counts instead of being dropped entirely.
+  const ensureDoctor = (doc: { id: string; user: { name: string }; department?: { name: string } | null }) => {
+    if (!doctorStats[doc.id]) {
+      doctorStats[doc.id] = {
+        doctorId: doc.id,
+        name: doc.user.name,
+        department: doc.department?.name || "",
         totalAppointments: 0,
         completedAppointments: 0,
         cancelledAppointments: 0,
@@ -310,24 +312,26 @@ async function doctorPerformanceReport(month: string, doctorId?: string | null) 
         prescriptions: 0,
       }
     }
-    doctorStats[key].totalAppointments++
-    if (a.status === "completed") doctorStats[key].completedAppointments++
-    if (a.status === "cancelled") doctorStats[key].cancelledAppointments++
+    return doctorStats[doc.id]
+  }
+
+  appointments.forEach((a) => {
+    const stat = ensureDoctor(a.doctor)
+    stat.totalAppointments++
+    if (a.status === "completed") stat.completedAppointments++
+    if (a.status === "cancelled") stat.cancelledAppointments++
   })
 
   consultations.forEach((c) => {
-    const key = c.doctorId
-    if (doctorStats[key]) doctorStats[key].consultations++
+    ensureDoctor(c.doctor).consultations++
   })
 
   labOrders.forEach((l) => {
-    const key = l.doctorId
-    if (doctorStats[key]) doctorStats[key].labOrders++
+    ensureDoctor(l.doctor).labOrders++
   })
 
   prescriptions.forEach((p) => {
-    const key = p.doctorId
-    if (doctorStats[key]) doctorStats[key].prescriptions++
+    ensureDoctor(p.doctor).prescriptions++
   })
 
   return NextResponse.json({
@@ -352,7 +356,11 @@ async function bedOccupancyReport() {
             beds: {
               where: { isDeleted: { isSet: false } },
               include: {
-                admission: {
+                // Only the current (active) admission occupies the bed; a bed
+                // has many admissions over time, so filter to the admitted one.
+                admissions: {
+                  where: { status: "admitted" },
+                  take: 1,
                   include: { patient: true, doctor: { include: { user: true } } },
                 },
               },
@@ -402,14 +410,17 @@ async function bedOccupancyReport() {
         number: room.roomNumber,
         type: room.type,
         bedCount: room.bedCount,
-        beds: room.beds.map((bed) => ({
-          id: bed.id,
-          number: bed.bedNumber,
-          status: bed.status,
-          patient: bed.admission?.patient?.name || null,
-          doctor: bed.admission?.doctor ? `Dr. ${bed.admission.doctor.user.name}` : null,
-          admittedAt: bed.admission?.admissionDate || null,
-        })),
+        beds: room.beds.map((bed) => {
+          const activeAdmission = bed.admissions[0]
+          return {
+            id: bed.id,
+            number: bed.bedNumber,
+            status: bed.status,
+            patient: activeAdmission?.patient?.name || null,
+            doctor: activeAdmission?.doctor ? `Dr. ${activeAdmission.doctor.user.name}` : null,
+            admittedAt: activeAdmission?.admissionDate || null,
+          }
+        }),
       })),
     }
   })
@@ -424,9 +435,9 @@ async function bedOccupancyReport() {
     wards: wardStats,
     admittedPatients: admittedPatients.map((a) => ({
       patient: a.patient.name,
-      ward: a.ward.name,
-      room: a.room.roomNumber,
-      bed: a.bed.bedNumber,
+      ward: a.ward?.name ?? "Not assigned",
+      room: a.room?.roomNumber ?? "-",
+      bed: a.bed?.bedNumber ?? "-",
       doctor: `Dr. ${a.doctor.user.name}`,
       admittedAt: a.admissionDate,
       daysAdmitted: Math.floor(
@@ -435,8 +446,8 @@ async function bedOccupancyReport() {
     })),
     recentDischarges: recentDischarges.map((d) => ({
       patient: d.patient.name,
-      ward: d.ward.name,
-      bed: d.bed.bedNumber,
+      ward: d.ward?.name ?? "Not assigned",
+      bed: d.bed?.bedNumber ?? "-",
       dischargedAt: d.dischargeDate,
     })),
   })

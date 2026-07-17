@@ -18,11 +18,64 @@ interface Patient {
   age: number | null
   bloodGroup: string | null
   createdAt: string
+  appointments?: { status: string; date: string }[]
+  admissions?: { id: string }[]
   _count: {
     appointments: number
     admissions: number
   }
 }
+
+type WorkflowStatusKey = 'admitted' | 'scheduled' | 'waiting' | 'in_progress' | 'completed' | 'cancelled' | 'registered'
+type WorkflowBadge = { label: string; variant: 'default' | 'secondary' | 'destructive' | 'success' | 'warning' | 'outline' }
+
+// Derive the patient's current workflow status key from their active
+// admission (IPD) or their most recent appointment status (OPD lifecycle).
+// This is the single source of truth used both for the status badge and for
+// the filter tabs below, so the two always agree.
+function getWorkflowStatusKey(patient: Patient): WorkflowStatusKey {
+  if (patient.admissions && patient.admissions.length > 0) {
+    return 'admitted'
+  }
+  const latest = patient.appointments && patient.appointments.length > 0 ? patient.appointments[0] : null
+  if (!latest) {
+    return 'registered'
+  }
+  switch (latest.status) {
+    case 'scheduled':
+    case 'waiting':
+    case 'in_progress':
+    case 'completed':
+    case 'cancelled':
+      return latest.status
+    default:
+      return 'registered'
+  }
+}
+
+// Mirrors the AppointmentStatus wording used across the app: In Queue = waiting.
+const WORKFLOW_STATUS_LABELS: Record<WorkflowStatusKey, WorkflowBadge> = {
+  admitted: { label: 'Admitted (IPD)', variant: 'default' },
+  scheduled: { label: 'Scheduled', variant: 'secondary' },
+  waiting: { label: 'In Queue', variant: 'warning' },
+  in_progress: { label: 'In Progress', variant: 'default' },
+  completed: { label: 'Completed', variant: 'success' },
+  cancelled: { label: 'Cancelled', variant: 'destructive' },
+  registered: { label: 'Registered', variant: 'outline' },
+}
+
+function getWorkflowStatus(patient: Patient): WorkflowBadge {
+  return WORKFLOW_STATUS_LABELS[getWorkflowStatusKey(patient)]
+}
+
+// Status filter tabs shown on the Patients page.
+const STATUS_TABS: { key: WorkflowStatusKey | 'all'; label: string }[] = [
+  { key: 'all', label: 'All' },
+  { key: 'waiting', label: 'In Queue' },
+  { key: 'in_progress', label: 'In Progress' },
+  { key: 'admitted', label: 'Admitted' },
+  { key: 'completed', label: 'Completed' },
+]
 
 export default function PatientsPage() {
   const { toast } = useToast()
@@ -30,6 +83,7 @@ export default function PatientsPage() {
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [searchType, setSearchType] = useState<'uhid' | 'mobile' | 'name'>('name')
+  const [statusFilter, setStatusFilter] = useState<WorkflowStatusKey | 'all'>('all')
 
   useEffect(() => {
     fetchPatients()
@@ -57,8 +111,16 @@ export default function PatientsPage() {
 
   const getBloodGroupDisplay = (group: string | null) => {
     if (!group) return 'N/A'
-    return group.replace('_', '+')
+    // e.g. "A_positive" -> "A+", "O_negative" -> "O-". A plain replace('_','+')
+    // wrongly produced "A+positive"; map the suffix explicitly.
+    return group.replace('_positive', '+').replace('_negative', '-')
   }
+
+  // Client-side status filter — applied on top of the existing search
+  // results, so search + status filter can be combined freely.
+  const filteredPatients = statusFilter === 'all'
+    ? patients
+    : patients.filter((p) => getWorkflowStatusKey(p) === statusFilter)
 
   return (
     <div className="p-8">
@@ -114,6 +176,19 @@ export default function PatientsPage() {
         </CardContent>
       </Card>
 
+      {/* Status Filter Tabs */}
+      <div className="flex gap-2 mb-6 flex-wrap">
+        {STATUS_TABS.map((tab) => (
+          <Button
+            key={tab.key}
+            variant={statusFilter === tab.key ? 'default' : 'outline'}
+            onClick={() => setStatusFilter(tab.key)}
+          >
+            {tab.label}
+          </Button>
+        ))}
+      </div>
+
       {/* Patient List */}
       {loading ? (
         <div className="flex items-center justify-center h-48">
@@ -121,7 +196,7 @@ export default function PatientsPage() {
         </div>
       ) : (
         <div className="grid gap-4">
-          {patients.length === 0 ? (
+          {filteredPatients.length === 0 ? (
             <div className="text-center py-12">
               <Users className="h-12 w-12 text-gray-300 mx-auto mb-3" />
               <p className="text-gray-500">No patients found</p>
@@ -130,7 +205,7 @@ export default function PatientsPage() {
               </Link>
             </div>
           ) : (
-            patients.map((patient) => (
+            filteredPatients.map((patient) => (
               <Card key={patient.id} className="hover:shadow-md transition-shadow">
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
@@ -139,9 +214,13 @@ export default function PatientsPage() {
                         <User className="h-6 w-6 text-blue-600" />
                       </div>
                       <div>
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-3 flex-wrap">
                           <h3 className="font-semibold text-lg">{patient.name}</h3>
                           <Badge variant="secondary">{patient.uhid}</Badge>
+                          {(() => {
+                            const wf = getWorkflowStatus(patient)
+                            return <Badge variant={wf.variant}>{wf.label}</Badge>
+                          })()}
                         </div>
                         <div className="flex items-center gap-6 mt-2 text-sm text-gray-600">
                           <div className="flex items-center gap-1">
@@ -150,7 +229,7 @@ export default function PatientsPage() {
                           </div>
                           <div className="flex items-center gap-1">
                             <User className="h-4 w-4" />
-                            {patient.gender}, {patient.age || 'N/A'} years
+                            {patient.gender}, {patient.age ?? 'N/A'} years
                           </div>
                           <div>
                             Blood Group: {getBloodGroupDisplay(patient.bloodGroup)}
@@ -162,7 +241,7 @@ export default function PatientsPage() {
                       <p className="text-sm text-gray-600">
                         {patient._count.appointments} visits
                       </p>
-                      <Link href={`/patients/${patient.id}`}>
+                      <Link href={patient.admissions?.[0]?.id ? `/ipd/${patient.admissions[0].id}` : `/patients/${patient.id}`}>
                         <Button variant="outline" className="mt-2">
                           View Details
                         </Button>

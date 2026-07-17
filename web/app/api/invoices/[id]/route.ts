@@ -43,13 +43,40 @@ export async function PUT(
     const { id } = await params
     const body = await request.json()
 
+    const existing = await prisma.invoice.findUnique({ where: { id } })
+    if (!existing) {
+      return NextResponse.json({ error: "Invoice not found" }, { status: 404 })
+    }
+
+    // Recompute total whenever tax/discount change — the subtotal is fixed by
+    // the line items, so total = subtotal + tax - discount must be kept in sync.
+    const tax = typeof body.tax === "number" ? body.tax : existing.tax
+    const discount = typeof body.discount === "number" ? body.discount : existing.discount
+
+    if (discount < 0 || tax < 0) {
+      return NextResponse.json({ error: "Tax and discount cannot be negative" }, { status: 400 })
+    }
+    if (discount > existing.subtotal + tax) {
+      return NextResponse.json({ error: "Discount cannot exceed subtotal + tax" }, { status: 400 })
+    }
+
+    const total = existing.subtotal + tax - discount
+
+    const data: {
+      tax: number
+      discount: number
+      total: number
+      status?: "pending" | "partial" | "paid" | "cancelled"
+    } = { tax, discount, total }
+    // Only allow status changes to/from cancelled here; paid/partial are derived
+    // from recorded payments in the payment route, never set manually.
+    if (body.status === "cancelled" || body.status === "pending") {
+      data.status = body.status
+    }
+
     const invoice = await prisma.invoice.update({
       where: { id },
-      data: {
-        status: body.status,
-        discount: body.discount,
-        tax: body.tax,
-      },
+      data,
       include: {
         patient: true,
         items: true,

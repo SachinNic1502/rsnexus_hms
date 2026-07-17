@@ -5,15 +5,19 @@ import { useParams } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { ArrowLeft, BedDouble, Stethoscope, FileText, Activity, Calendar, Loader2, Pill } from 'lucide-react'
+import { ArrowLeft, BedDouble, Stethoscope, FileText, Activity, Calendar, Loader2, Pill, Bed } from 'lucide-react'
 import Link from 'next/link'
 import { useToast } from '@/components/ui/toast'
+import { useAuth } from '@/lib/auth-context'
+import { BedAllocationModal } from '@/components/bed-allocation-modal'
 
 export default function AdmissionDetailPage() {
   const params = useParams()
   const { toast } = useToast()
+  const { hasRole } = useAuth()
   const [admission, setAdmission] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [showAllocate, setShowAllocate] = useState(false)
 
   useEffect(() => { fetchAdmission() }, [params.id])
 
@@ -42,8 +46,13 @@ export default function AdmissionDetailPage() {
           <div className="flex gap-2">
             {admission.status === 'admitted' && (
               <>
+                {!admission.bed && hasRole(['nurse', 'super_admin', 'hospital_admin']) && (
+                  <Button onClick={() => setShowAllocate(true)}><Bed className="mr-2 h-4 w-4" /> Assign Ward &amp; Bed</Button>
+                )}
                 <Link href={`/ipd/${params.id}/daily-rounds`}><Button variant="outline"><Activity className="mr-2 h-4 w-4" /> Daily Round</Button></Link>
-                <Link href={`/ipd/${params.id}/discharge`}><Button><FileText className="mr-2 h-4 w-4" /> Discharge</Button></Link>
+                {hasRole(['doctor', 'nurse']) && (
+                  <Link href={`/ipd/${params.id}/discharge`}><Button><FileText className="mr-2 h-4 w-4" /> Discharge</Button></Link>
+                )}
               </>
             )}
           </div>
@@ -64,10 +73,21 @@ export default function AdmissionDetailPage() {
           <CardHeader><CardTitle>Admission Details</CardTitle></CardHeader>
           <CardContent className="space-y-2 text-sm">
             <div className="flex justify-between"><span className="text-gray-600">Doctor</span><span className="font-medium">Dr. {admission.doctor.user.name}</span></div>
-            <div className="flex justify-between"><span className="text-gray-600">Ward</span><span>{admission.ward.name} ({admission.ward.type})</span></div>
-            <div className="flex justify-between"><span className="text-gray-600">Room/Bed</span><span>{admission.room.roomNumber} / {admission.bed.bedNumber}</span></div>
+            <div className="flex justify-between"><span className="text-gray-600">Ward</span><span>{admission.ward ? `${admission.ward.name} (${admission.ward.type})` : <span className="text-amber-600">Not assigned</span>}</span></div>
+            <div className="flex justify-between"><span className="text-gray-600">Room/Bed</span><span>{admission.bed ? `${admission.room?.roomNumber} / ${admission.bed.bedNumber}` : <span className="text-amber-600">Awaiting allocation</span>}</span></div>
             <div className="flex justify-between"><span className="text-gray-600">Admitted</span><span>{new Date(admission.admissionDate).toLocaleDateString()}</span></div>
             <div className="flex justify-between"><span className="text-gray-600">Days</span><span className="font-medium">{daysAdmitted}</span></div>
+            {admission.expectedStayDays ? (
+              <div className="flex justify-between">
+                <span className="text-gray-600">Expected Stay</span>
+                <span className="font-medium">
+                  {admission.expectedStayDays} days
+                  {admission.status === 'admitted' && daysAdmitted > admission.expectedStayDays && (
+                    <Badge variant="warning" className="ml-2">Exceeded</Badge>
+                  )}
+                </span>
+              </div>
+            ) : null}
             <div className="flex justify-between"><span className="text-gray-600">Status</span><Badge variant={admission.status === 'admitted' ? 'default' : 'secondary'}>{admission.status}</Badge></div>
           </CardContent>
         </Card>
@@ -117,7 +137,9 @@ export default function AdmissionDetailPage() {
                     <div className="flex items-center gap-4">
                       <span className="font-medium">₹{inv.total.toLocaleString()}</span>
                       <Badge variant={inv.status === 'paid' ? 'default' : 'destructive'}>{inv.status}</Badge>
-                      <Link href={`/billing/${inv.id}/payment`}><Button size="sm" variant="outline">Pay</Button></Link>
+                      {hasRole(['billing_staff', 'receptionist', 'nurse']) && (
+                        <Link href={`/billing/${inv.id}/payment`}><Button size="sm" variant="outline">Pay</Button></Link>
+                      )}
                     </div>
                   </div>
                 )
@@ -126,6 +148,12 @@ export default function AdmissionDetailPage() {
           </CardContent>
         </Card>
       )}
+
+      <BedAllocationModal
+        admission={showAllocate && admission ? { id: admission.id, patient: { name: admission.patient.name, uhid: admission.patient.uhid } } : null}
+        onClose={() => setShowAllocate(false)}
+        onAllocated={() => { setShowAllocate(false); fetchAdmission() }}
+      />
     </div>
   )
 }

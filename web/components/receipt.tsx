@@ -17,6 +17,16 @@ interface ReceiptProps {
   }
 }
 
+// Friendly labels for stored PaymentMethod enum values (bank_transfer is
+// surfaced as "Net Banking" across the app).
+const PAYMENT_METHOD_LABELS: Record<string, string> = {
+  cash: 'Cash',
+  upi: 'UPI',
+  card: 'Card',
+  bank_transfer: 'Net Banking',
+  insurance: 'Insurance',
+}
+
 export function Receipt({ invoice }: ReceiptProps) {
   const paid = invoice.payments.reduce((s, p) => s + p.amount, 0)
   const balance = invoice.total - paid
@@ -32,7 +42,7 @@ export function Receipt({ invoice }: ReceiptProps) {
             <Building2 style={{ width: 32, height: 32, color: '#fff' }} />
           </div>
           <div>
-            <h1 style={{ margin: 0, fontSize: '22px', fontWeight: 700, letterSpacing: '0.5px' }}>Rs Nexus HMS</h1>
+            <h1 style={{ margin: 0, fontSize: '22px', fontWeight: 700, letterSpacing: '0.5px' }}>Jeevanti Hospitals</h1>
             <p style={{ margin: 0, fontSize: '11px', opacity: 0.8, letterSpacing: '0.3px' }}>123 Healthcare Avenue, Medical District</p>
           </div>
         </div>
@@ -158,7 +168,7 @@ export function Receipt({ invoice }: ReceiptProps) {
             <div style={{ marginTop: '8px', borderTop: `1px solid ${isPaid ? '#bbf7d0' : '#fde68a'}`, paddingTop: '8px' }}>
               {invoice.payments.map((p, i) => (
                 <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#64748b', marginBottom: '2px' }}>
-                  <span style={{ textTransform: 'uppercase', fontWeight: 600 }}>{p.method}</span>
+                  <span style={{ textTransform: 'uppercase', fontWeight: 600 }}>{PAYMENT_METHOD_LABELS[p.method] || p.method}</span>
                   <span>₹{p.amount.toLocaleString()} — {new Date(p.paidAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
                 </div>
               ))}
@@ -170,7 +180,7 @@ export function Receipt({ invoice }: ReceiptProps) {
         <div style={{ borderTop: '2px solid #e2e8f0', paddingTop: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
           <div style={{ fontSize: '11px', color: '#94a3b8' }}>
             <p style={{ margin: '0 0 4px' }}>This is a computer-generated receipt.</p>
-            <p style={{ margin: 0 }}>For queries, contact billing@rsnexus.com</p>
+            <p style={{ margin: 0 }}>For queries, contact billing@jeevantihospitals.com</p>
           </div>
           <div style={{ textAlign: 'right' }}>
             <div style={{ borderTop: '1px solid #94a3b8', width: '160px', paddingTop: '4px' }}>

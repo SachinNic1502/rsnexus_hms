@@ -8,6 +8,7 @@ import { ArrowLeft, DollarSign, Loader2, AlertCircle, CheckCircle } from 'lucide
 import Link from 'next/link'
 import { useToast } from '@/components/ui/toast'
 import { useAuth } from '@/lib/auth-context'
+import { computeDueDate } from '@/lib/utils'
 
 interface Invoice {
   id: string
@@ -16,6 +17,7 @@ interface Invoice {
   total: number
   status: string
   createdAt: string
+  dueDate?: string | null
   patient: { name: string; uhid: string; mobile: string }
   payments: { amount: number; method: string }[]
 }
@@ -85,7 +87,11 @@ export default function PendingPaymentsPage() {
           {invoices.map((inv) => {
             const paid = inv.payments.reduce((s, p) => s + p.amount, 0)
             const remaining = inv.total - paid
-            const daysOld = Math.floor((Date.now() - new Date(inv.createdAt).getTime()) / (1000 * 60 * 60 * 24))
+            // Overdue is measured against the actual due date (net-30 from
+            // createdAt when the invoice predates the dueDate field), not the
+            // raw age of the invoice.
+            const dueDate = inv.dueDate ? new Date(inv.dueDate) : computeDueDate(inv.createdAt)
+            const daysOverdue = Math.floor((Date.now() - dueDate.getTime()) / (1000 * 60 * 60 * 24))
 
             return (
               <Card key={inv.id} className="hover:shadow-md transition-shadow">
@@ -100,7 +106,7 @@ export default function PendingPaymentsPage() {
                           <h3 className="font-semibold">{inv.patient.name}</h3>
                           <Badge variant="secondary">{inv.invoiceNumber}</Badge>
                           <Badge variant="outline">{inv.type}</Badge>
-                          {daysOld > 30 && <Badge variant="destructive">Overdue ({daysOld}d)</Badge>}
+                          {daysOverdue > 0 && <Badge variant="destructive">Overdue ({daysOverdue}d)</Badge>}
                         </div>
                         <div className="flex items-center gap-6 text-sm text-gray-600">
                           <span>{inv.patient.uhid}</span>

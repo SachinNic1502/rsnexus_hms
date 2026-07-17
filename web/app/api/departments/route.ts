@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { z } from "zod"
+import { requireRole } from "@/lib/api-utils"
+
+const ADMIN_ROLES = ["super_admin", "hospital_admin"]
 
 const departmentSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -24,6 +27,9 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+    const { error } = await requireRole(request, ADMIN_ROLES)
+    if (error) return error
+
     const body = await request.json()
     const parsed = departmentSchema.safeParse(body)
     if (!parsed.success) {

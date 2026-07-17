@@ -36,7 +36,7 @@ export default function ServicesPage() {
 
   const fetchServices = async () => {
     setLoading(true)
-    try { const r = await fetch('/api/services'); if (r.ok) { const data = await r.json(); setServices(Array.isArray(data) ? data : []) } }
+    try { const r = await fetch('/api/services?includeInactive=true'); if (r.ok) { const data = await r.json(); setServices(Array.isArray(data) ? data : []) } }
     finally { setLoading(false) }
   }
 

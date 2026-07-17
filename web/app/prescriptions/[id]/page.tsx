@@ -67,10 +67,10 @@ export default function PrescriptionPrintPage() {
           <div className="text-center border-b-2 border-black pb-4 mb-6">
             <div className="flex items-center justify-center gap-2 mb-2">
               <Building2 className="h-8 w-8" />
-              <h1 className="text-2xl font-bold">Rs Nexus Hospital</h1>
+              <h1 className="text-2xl font-bold">Jeevanti Hospitals</h1>
             </div>
             <p className="text-sm text-gray-600">123 Healthcare Avenue, Medical District</p>
-            <p className="text-sm text-gray-600">Phone: +91 98765 43210 | Email: info@rsnexus.com</p>
+            <p className="text-sm text-gray-600">Phone: +91 98765 43210 | Email: info@jeevantihospitals.com</p>
           </div>
 
           {/* Prescription Info */}

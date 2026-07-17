@@ -17,6 +17,7 @@ model User {
   role           UserRole  @default(receptionist)
   staffType      String?
   isActive       Boolean   @default(true)
+  available      Boolean?  @default(true)
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
   isDeleted      Boolean?
@@ -358,7 +359,10 @@ model Bed {
   deletedBy         String?
 
   room              Room      @relation(fields: [roomId], references: [id])
-  admission         Admission?
+  // A bed hosts many admissions over its lifetime (one active at a time,
+  // enforced via `status`). Historical/discharged admissions keep their bedId
+  // for reporting, so this is intentionally a one-to-many relation.
+  admissions        Admission[]
 }
 
 enum BedStatus {
@@ -373,9 +377,12 @@ model Admission {
   id                String          @id @default(auto()) @map("_id") @db.ObjectId
   patientId         String          @db.ObjectId
   doctorId          String          @db.ObjectId
-  wardId            String          @db.ObjectId
-  roomId            String          @db.ObjectId
-  bedId             String          @unique @db.ObjectId
+  // Ward / Room / Bed are assigned by the Nurse via Bed Allocation *after*
+  // the doctor admits the patient, so they are optional at admission time.
+  // A patient stays "admitted" with no bed until a nurse allocates one.
+  wardId            String?         @db.ObjectId
+  roomId            String?         @db.ObjectId
+  bedId             String?         @db.ObjectId
   admissionNumber   String          @unique
   admissionDate     DateTime        @default(now())
   dischargeDate     DateTime?
@@ -383,14 +390,22 @@ model Admission {
   dischargeSummary  String?
   finalDiagnosis    String?
   followUpDate      DateTime?
+  // Expected length of stay (in days) entered by the doctor at admission time.
+  // Purely informational — the patient is only discharged when the doctor
+  // explicitly discharges, never automatically when this expires.
+  expectedStayDays  Int?
+  // Optional link back to the OPD appointment/consultation that led to this
+  // admission, so discharge can complete the originating consultation.
+  appointmentId     String?         @db.ObjectId
+  consultationId    String?         @db.ObjectId
   createdAt         DateTime        @default(now())
   updatedAt         DateTime        @updatedAt
 
   patient           Patient         @relation(fields: [patientId], references: [id])
   doctor            Doctor          @relation(fields: [doctorId], references: [id])
-  ward              Ward            @relation(fields: [wardId], references: [id])
-  room              Room            @relation(fields: [roomId], references: [id])
-  bed               Bed             @relation(fields: [bedId], references: [id])
+  ward              Ward?           @relation(fields: [wardId], references: [id])
+  room              Room?           @relation(fields: [roomId], references: [id])
+  bed               Bed?            @relation(fields: [bedId], references: [id])
   dailyRounds       DailyRound[]
   invoices          Invoice[]
 }
@@ -433,6 +448,10 @@ model Invoice {
   total         Float
   status        InvoiceStatus @default(pending)
   createdAt     DateTime      @default(now())
+  // Payment due date. Defaults to invoiceDate + 30 days (net-30) at creation.
+  // Nullable so pre-existing invoices remain valid; the UI falls back to
+  // createdAt + 30 days when this is not set.
+  dueDate       DateTime?
   paidAt        DateTime?
 
   patient       Patient       @relation(fields: [patientId], references: [id])

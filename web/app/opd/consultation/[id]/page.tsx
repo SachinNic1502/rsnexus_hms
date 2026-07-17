@@ -5,10 +5,11 @@ import { useParams, useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { ArrowLeft, Loader2, Thermometer, Activity, Heart, Weight, Ruler } from 'lucide-react'
+import { ArrowLeft, Loader2, Thermometer, Activity, Heart, Weight, Ruler, CheckCircle, DoorOpen, BedDouble, Plus } from 'lucide-react'
 import Link from 'next/link'
 import { useToast } from '@/components/ui/toast'
-import { PrescriptionForm } from '@/components/prescription-form'
+import { PrescriptionForm, type Medicine, type CurrentMedicineInput } from '@/components/prescription-form'
+import { Dialog } from '@/components/ui/dialog'
 import { useAuth } from '@/lib/auth-context'
 
 export default function ConsultationPage() {
@@ -23,6 +24,18 @@ export default function ConsultationPage() {
   const [appointment, setAppointment] = useState<Record<string, unknown> | null>(null)
   const [consultationId, setConsultationId] = useState<string | null>(null)
   const [medicineOptions, setMedicineOptions] = useState<{ id: string; name: string }[]>([])
+  // Prescription-entry state, lifted up from PrescriptionForm so the "Add to
+  // Prescription" action can be triggered from the page header.
+  const [medicines, setMedicines] = useState<Medicine[]>([])
+  const [currentMedicine, setCurrentMedicine] = useState<CurrentMedicineInput>({ name: '', dose: '', instructions: '' })
+  // Finish Consultation modal (Phase 4): doctor explicitly chooses the
+  // patient's disposition — Discharge Today (OPD) or Admit Patient (IPD).
+  const [showFinishModal, setShowFinishModal] = useState(false)
+  const [finishing, setFinishing] = useState(false)
+  // When Admit Patient is chosen, the modal shows a second step asking for
+  // the expected admission duration before routing to the Admissions flow.
+  const [finishStep, setFinishStep] = useState<'choose' | 'admitDays'>('choose')
+  const [admitDays, setAdmitDays] = useState('')
 
   const [formData, setFormData] = useState({ chiefComplaint: '', symptoms: '', diagnosis: '', clinicalNotes: '' })
 
@@ -120,40 +133,135 @@ export default function ConsultationPage() {
     }
   }
 
-  const handleSavePrescription = async (medicines: unknown[]) => {
+  // Mark the appointment completed. Kept as a small helper so it stays in one
+  // place for the Finish Consultation flow below.
+  const markAppointmentCompleted = async () => {
+    const aptData = appointment as Record<string, unknown>
+    await fetch(`/api/appointments/${aptData.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'completed' }),
+    })
+  }
+
+  // Medicine-entry handlers — moved up from PrescriptionForm so the primary
+  // "Add to Prescription" action can be triggered from the page header.
+  const addMedicine = () => {
+    if (!currentMedicine.name || !currentMedicine.dose) {
+      toast('Please enter medicine name and dose', 'error')
+      return
+    }
+    setMedicines(prev => [...prev, { id: Date.now().toString(), ...currentMedicine }])
+    setCurrentMedicine({ name: '', dose: '', instructions: '' })
+  }
+
+  const quickAddMedicine = (name: string) => {
+    setMedicines(prev => [...prev, { id: `${Date.now()}-${name}`, name, dose: '', instructions: '' }])
+  }
+
+  const removeMedicine = (id: string) => {
+    setMedicines(prev => prev.filter(m => m.id !== id))
+  }
+
+  const updateMedicineDose = (id: string, dose: string) => {
+    setMedicines(prev => prev.map(m => (m.id === id ? { ...m, dose } : m)))
+  }
+
+  // Finish Consultation — does everything the old standalone "Save
+  // Prescription" button used to do (save the consultation, save any added
+  // medicines as a prescription), plus marks the appointment completed and
+  // opens the Discharge Today / Admit Patient modal. A prescription is
+  // optional: finishing works even with zero medicines added.
+  const handleFinishConsultation = async () => {
+    if (!formData.chiefComplaint.trim()) {
+      toast('Please enter the chief complaint before finishing', 'error')
+      return
+    }
     const cid = await handleSaveConsultation()
     if (!cid) return
     setSaving(true)
     try {
-      const aptData = appointment as Record<string, unknown>
-      const patient = aptData.patient as Record<string, unknown>
-      const doctor = aptData.doctor as Record<string, unknown>
-      const res = await fetch('/api/prescriptions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          consultationId: cid,
-          patientId: patient.id,
-          doctorId: doctor.id,
-          medicines,
-        }),
-      })
-      if (!res.ok) throw new Error('Failed to save prescription')
+      if (medicines.length > 0) {
+        const aptData = appointment as Record<string, unknown>
+        const patient = aptData.patient as Record<string, unknown>
+        const doctor = aptData.doctor as Record<string, unknown>
+        const res = await fetch('/api/prescriptions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            consultationId: cid,
+            patientId: patient.id,
+            doctorId: doctor.id,
+            medicines,
+          }),
+        })
+        if (!res.ok) throw new Error('Failed to save prescription')
+      }
 
-      await fetch(`/api/appointments/${aptData.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'completed' }),
-      })
-
-      toast('Consultation completed and prescription saved', 'success')
-      router.push(`/patients/${patient.id}`)
+      await markAppointmentCompleted()
+      setFinishStep('choose')
+      setShowFinishModal(true)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Error')
-      toast(err instanceof Error ? err.message : 'Failed to complete consultation', 'error')
+      toast(err instanceof Error ? err.message : 'Failed to finish consultation', 'error')
     } finally {
       setSaving(false)
     }
+  }
+
+  // Discharge Today (OPD): consultation is already completed. Generate the OPD
+  // invoice (status Pending) via the existing auto-opd API and move the patient
+  // to the billing queue. auto-opd is idempotent per visit (dedup guard).
+  const handleDischargeToday = async () => {
+    const aptData = appointment as Record<string, unknown>
+    const patient = aptData.patient as Record<string, unknown>
+    setFinishing(true)
+    try {
+      let invoiceMsg = ''
+      if (consultationId) {
+        const res = await fetch('/api/invoices/auto-opd', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ consultationId }),
+        })
+        if (res.ok) {
+          const inv = await res.json()
+          invoiceMsg = ` Invoice ${inv.invoiceNumber} created (Pending).`
+        } else {
+          const data = await res.json().catch(() => ({}))
+          // Not fatal: the visit is still completed. The bill can be raised
+          // later from the patient profile / billing module.
+          invoiceMsg = data?.error ? ` No invoice generated: ${data.error}.` : ' No invoice generated.'
+        }
+      }
+      toast(`Patient discharged (OPD).${invoiceMsg} Sent to billing queue.`, 'success')
+      setShowFinishModal(false)
+      router.push(`/patients/${patient.id}`)
+    } catch {
+      toast('Failed to complete OPD discharge', 'error')
+    } finally {
+      setFinishing(false)
+    }
+  }
+
+  // Admit Patient (IPD): route to the existing Admissions flow, carrying the
+  // patient / appointment / consultation / doctor context — plus the expected
+  // admission duration entered on the modal's second step — so the admission
+  // can be linked back (discharge later completes this consultation).
+  const handleAdmitPatient = () => {
+    const aptData = appointment as Record<string, unknown>
+    const patient = aptData.patient as Record<string, unknown>
+    const doctor = aptData.doctor as Record<string, unknown>
+    const q = new URLSearchParams({
+      patientId: String(patient.id),
+      appointmentId: String(aptData.id),
+      doctorId: String(doctor.id),
+    })
+    if (consultationId) q.set('consultationId', consultationId)
+    if (admitDays) q.set('expectedStayDays', admitDays)
+    setShowFinishModal(false)
+    setFinishStep('choose')
+    router.push(`/ipd/admit?${q.toString()}`)
   }
 
   if (authLoading || user?.role === 'super_admin') return null
@@ -180,7 +288,14 @@ export default function ConsultationPage() {
     <div className="p-8">
       <div className="mb-6">
         <Link href="/opd"><Button variant="ghost" className="mb-4"><ArrowLeft className="mr-2 h-4 w-4" /> Back to OPD</Button></Link>
-        <h1 className="text-3xl font-bold text-gray-900">Doctor Consultation</h1>
+        <div className="flex items-center justify-between">
+          <h1 className="text-3xl font-bold text-gray-900">Doctor Consultation</h1>
+          {!isReadOnly && (
+            <Button onClick={addMedicine}>
+              <Plus className="mr-2 h-4 w-4" /> Add to Prescription
+            </Button>
+          )}
+        </div>
       </div>
 
       {error && <div className="text-sm text-destructive bg-destructive/10 p-3 rounded-md mb-4">{error}</div>}
@@ -236,8 +351,103 @@ export default function ConsultationPage() {
 
       {/* Prescription */}
       <div className="mt-6">
-        <PrescriptionForm onSave={handleSavePrescription} onCancel={() => router.push(`/patients/${patient.id as string}`)} medicineOptions={medicineOptions} readOnly={isReadOnly} />
+        <PrescriptionForm
+          medicines={medicines}
+          currentMedicine={currentMedicine}
+          onCurrentMedicineChange={setCurrentMedicine}
+          onQuickAddMedicine={quickAddMedicine}
+          onRemoveMedicine={removeMedicine}
+          onUpdateMedicineDose={updateMedicineDose}
+          medicineOptions={medicineOptions}
+          readOnly={isReadOnly}
+        />
       </div>
+
+      {/* Cancel + Finish Consultation — single aligned row. Cancel is always
+          available (as before); Finish Consultation is limited to consulting
+          roles (not read-only nurses). */}
+      <div className="mt-6 flex justify-end gap-4">
+        <Button variant="outline" onClick={() => router.push(`/patients/${patient.id as string}`)}>
+          Cancel
+        </Button>
+        {!isReadOnly && (
+          <Button onClick={handleFinishConsultation} disabled={saving}>
+            {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
+            Finish Consultation
+          </Button>
+        )}
+      </div>
+
+      <Dialog
+        open={showFinishModal}
+        onClose={() => { setShowFinishModal(false); setFinishStep('choose') }}
+        title={finishStep === 'admitDays' ? 'Admit Patient (IPD)' : 'Finish Consultation'}
+      >
+        {finishStep === 'choose' ? (
+          <>
+            <p className="text-sm text-gray-600 mb-4">
+              How would you like to proceed with <span className="font-medium">{patient.name as string}</span>?
+            </p>
+            <div className="grid grid-cols-1 gap-3">
+              <button
+                type="button"
+                onClick={handleDischargeToday}
+                disabled={finishing}
+                className="flex items-start gap-3 rounded-lg border border-gray-200 p-4 text-left transition-colors hover:border-primary hover:bg-primary/5 disabled:opacity-60"
+              >
+                <div className="rounded-full bg-green-100 p-2"><DoorOpen className="h-5 w-5 text-green-600" /></div>
+                <div>
+                  <p className="font-semibold">Discharge Today (OPD)</p>
+                  <p className="text-sm text-gray-600">Complete the visit as outpatient and generate the OPD bill (status Pending). Patient moves to the billing queue.</p>
+                </div>
+              </button>
+              <button
+                type="button"
+                onClick={() => setFinishStep('admitDays')}
+                disabled={finishing}
+                className="flex items-start gap-3 rounded-lg border border-gray-200 p-4 text-left transition-colors hover:border-primary hover:bg-primary/5 disabled:opacity-60"
+              >
+                <div className="rounded-full bg-blue-100 p-2"><BedDouble className="h-5 w-5 text-blue-600" /></div>
+                <div>
+                  <p className="font-semibold">Admit Patient (IPD)</p>
+                  <p className="text-sm text-gray-600">Admit as an inpatient, set the expected stay, and manage progress via Daily Rounds until discharge.</p>
+                </div>
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <p className="text-sm text-gray-600 mb-4">
+              How many days is <span className="font-medium">{patient.name as string}</span> expected to stay admitted? This is an estimate only — the patient stays admitted until you explicitly discharge them.
+            </p>
+            <div className="space-y-2 mb-4">
+              <label className="text-sm font-medium">Expected Admission Duration (days)</label>
+              <input
+                type="number"
+                min={1}
+                autoFocus
+                value={admitDays}
+                onChange={e => setAdmitDays(e.target.value)}
+                placeholder="e.g. 3"
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              />
+            </div>
+            <div className="flex justify-end gap-3">
+              <Button type="button" variant="outline" onClick={() => setFinishStep('choose')}>
+                Back
+              </Button>
+              <Button type="button" onClick={handleAdmitPatient}>
+                Continue to Admission
+              </Button>
+            </div>
+          </>
+        )}
+        {finishing && (
+          <div className="mt-4 flex items-center justify-center text-sm text-gray-500">
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Processing…
+          </div>
+        )}
+      </Dialog>
     </div>
   )
 }

@@ -26,9 +26,10 @@ interface Invoice {
 
 const paymentMethods = [
   { value: 'cash', label: 'Cash' },
-  { value: 'card', label: 'Card' },
   { value: 'upi', label: 'UPI' },
-  { value: 'bank_transfer', label: 'Bank Transfer' },
+  { value: 'card', label: 'Card' },
+  // `bank_transfer` is the stored enum value; surfaced as "Net Banking".
+  { value: 'bank_transfer', label: 'Net Banking' },
   { value: 'insurance', label: 'Insurance' },
 ]
 

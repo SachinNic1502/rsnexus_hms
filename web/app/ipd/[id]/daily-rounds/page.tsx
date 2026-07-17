@@ -55,7 +55,7 @@ export default function DailyRoundsPage() {
       <div className="mb-6">
         <Link href={`/ipd/${params.id}`}><Button variant="ghost" className="mb-4"><ArrowLeft className="mr-2 h-4 w-4" /> Back to Admission</Button></Link>
         <h1 className="text-3xl font-bold text-gray-900">Record Daily Round</h1>
-        <p className="text-gray-600 mt-1">{admission.patient.name} | {admission.ward.name} - Room {admission.room.roomNumber}, Bed {admission.bed.bedNumber}</p>
+        <p className="text-gray-600 mt-1">{admission.patient.name}{admission.bed ? ` | ${admission.ward?.name} - Room ${admission.room?.roomNumber}, Bed ${admission.bed.bedNumber}` : ' | Awaiting bed allocation'}</p>
       </div>
 
       <Card className="max-w-3xl mx-auto">

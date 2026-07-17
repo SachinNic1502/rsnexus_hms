@@ -1,13 +1,23 @@
-import { NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
+import { getToken } from "next-auth/jwt"
 import { prisma } from "@/lib/prisma"
 import { handleApiError } from "@/lib/error-handler"
+import { computeDueDate } from "@/lib/utils"
 
-export async function GET() {
+// Roles allowed to see revenue / outstanding / pending-bill figures. Others get
+// the operational stats only — matches how the dashboard UI hides these cards.
+const BILLING_VIEW_ROLES = ["super_admin", "hospital_admin", "billing_staff", "receptionist"]
+
+export async function GET(request: NextRequest) {
   try {
+    const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET })
+    const canViewBilling = BILLING_VIEW_ROLES.includes(token?.role as string)
     const today = new Date()
     today.setHours(0, 0, 0, 0)
     const tomorrow = new Date(today)
     tomorrow.setDate(tomorrow.getDate() + 1)
+    // Start of the current calendar month (for monthly revenue).
+    const monthStart = new Date(today.getFullYear(), today.getMonth(), 1)
 
     const [
       todayAppointments,
@@ -15,6 +25,11 @@ export async function GET() {
       totalBeds,
       occupiedBeds,
       pendingBills,
+      paidBills,
+      partialBills,
+      dailyRevenueAgg,
+      monthlyRevenueAgg,
+      outstandingInvoices,
       doctors,
       recentAppointments,
       recentAdmissions,
@@ -30,6 +45,26 @@ export async function GET() {
       prisma.bed.count({ where: { status: { not: "maintenance" }, isDeleted: { isSet: false } } }),
       prisma.bed.count({ where: { status: "occupied", isDeleted: { isSet: false } } }),
       prisma.invoice.count({ where: { status: { in: ["pending", "partial"] } } }),
+      // Phase 8 billing metrics
+      prisma.invoice.count({ where: { status: "paid" } }),
+      prisma.invoice.count({ where: { status: "partial" } }),
+      // Daily revenue = payments actually collected today (not invoiced total).
+      prisma.payment.aggregate({
+        where: { paidAt: { gte: today, lt: tomorrow } },
+        _sum: { amount: true },
+      }),
+      // Monthly revenue = payments collected since the start of this month.
+      prisma.payment.aggregate({
+        where: { paidAt: { gte: monthStart, lt: tomorrow } },
+        _sum: { amount: true },
+      }),
+      // Unpaid / partially-paid invoices, with payments, so we can compute the
+      // true outstanding amount (total − payments) and a pending-bills table.
+      prisma.invoice.findMany({
+        where: { status: { in: ["pending", "partial"] } },
+        include: { patient: true, payments: true },
+        orderBy: { createdAt: "asc" },
+      }),
       prisma.doctor.findMany({
         include: { user: true, department: true },
       }),
@@ -57,6 +92,35 @@ export async function GET() {
       _sum: { total: true },
     })
 
+    // True outstanding amount = Σ(invoice.total − payments) across unpaid /
+    // partial invoices. This is payment-adjusted, unlike pendingBillTotal
+    // (which sums the full invoice total and overstates partials). We keep
+    // pendingBillTotal for backward compatibility and add the accurate figure.
+    const nowMs = Date.now()
+    const dayMs = 1000 * 60 * 60 * 24
+    let outstandingAmount = 0
+    const pendingInvoices = outstandingInvoices.map((inv) => {
+      const paid = inv.payments.reduce((sum, p) => sum + p.amount, 0)
+      const remaining = inv.total - paid
+      outstandingAmount += remaining
+      const dueDate = inv.dueDate ?? computeDueDate(inv.createdAt)
+      const daysPending = Math.max(0, Math.floor((nowMs - new Date(inv.createdAt).getTime()) / dayMs))
+      return {
+        id: inv.id,
+        invoiceNumber: inv.invoiceNumber,
+        patient: inv.patient.name,
+        type: inv.type,
+        status: inv.status,
+        total: inv.total,
+        paid,
+        remaining,
+        invoiceDate: inv.createdAt,
+        dueDate,
+        daysPending,
+        overdue: dueDate.getTime() < nowMs,
+      }
+    })
+
     return NextResponse.json({
       stats: {
         todayAppointments,
@@ -65,8 +129,21 @@ export async function GET() {
         totalBeds,
         occupiedBeds,
         pendingBills,
-        pendingBillTotal: pendingBillTotal._sum.total || 0,
+        // Financial figures are exposed only to billing-capable roles; other
+        // roles receive the operational stats without revenue/outstanding data.
+        ...(canViewBilling
+          ? {
+              pendingBillTotal: pendingBillTotal._sum.total || 0,
+              paidBills,
+              partialBills,
+              outstandingAmount,
+              dailyRevenue: dailyRevenueAgg._sum.amount || 0,
+              monthlyRevenue: monthlyRevenueAgg._sum.amount || 0,
+            }
+          : {}),
       },
+      // Pending-bills table data — billing roles only.
+      pendingInvoices: canViewBilling ? pendingInvoices : [],
       doctors: doctors.map((d) => ({
         id: d.id,
         name: d.user.name,
@@ -83,9 +160,10 @@ export async function GET() {
       recentAdmissions: recentAdmissions.map((a) => ({
         id: a.id,
         patient: a.patient.name,
-        ward: a.ward.name,
-        room: a.room.roomNumber,
-        bed: a.bed.bedNumber,
+        // Ward/room/bed are null until a nurse allocates a bed.
+        ward: a.ward?.name ?? null,
+        room: a.room?.roomNumber ?? null,
+        bed: a.bed?.bedNumber ?? null,
         admittedAt: a.admissionDate,
       })),
     })

@@ -53,6 +53,16 @@ function PatientRegistrationForm() {
   const searchParams = useSearchParams();
   const { toast } = useToast();
   const searchRef = useRef<HTMLInputElement>(null);
+  // Doctor to re-apply once the department's doctor list has loaded. Setting a
+  // department resets the selected doctor, so when prefilling a returning
+  // patient's last-visit doctor we stash it here and apply it after the list
+  // arrives.
+  const pendingDoctorIdRef = useRef<string | null>(null);
+  // Consultation Type drives the form: "new" shows the new-patient form,
+  // "follow_up" shows the existing-patient search. When a returning ("old")
+  // patient is selected their saved record — demographics plus their last
+  // visit's vitals, doctor and billing — is loaded from the database and shown
+  // prefilled, so their details do not have to be re-entered.
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -64,6 +74,12 @@ function PatientRegistrationForm() {
     null,
   );
   const [searchingPatients, setSearchingPatients] = useState(false);
+
+  // Saved record for the selected (returning) patient, loaded from the
+  // database so their existing details can be shown prefilled rather than
+  // re-entered.
+  const [existingDetails, setExistingDetails] = useState<any | null>(null);
+  const [loadingDetails, setLoadingDetails] = useState(false);
 
   // New-patient registration fields (only used when no existing patient is selected)
   const [newPatient, setNewPatient] = useState({
@@ -122,6 +138,9 @@ function PatientRegistrationForm() {
     if (pid && uhid) {
       setSelectedPatient({ id: pid, uhid, name: name || "", mobile: "" });
       setPatientSearch(uhid);
+      // A patient arriving prefilled is a returning patient — show the
+      // follow-up / existing-patient view rather than the new-patient form.
+      setVisit((prev) => ({ ...prev, consultationType: "follow_up" }));
     }
   }, [searchParams]);
 
@@ -165,6 +184,82 @@ function PatientRegistrationForm() {
     return () => clearTimeout(timeout);
   }, [patientSearch, selectedPatientId]);
 
+  // Load the full saved record for a returning patient so their existing
+  // details can be shown prefilled from the database.
+  useEffect(() => {
+    if (!selectedPatientId) {
+      setExistingDetails(null);
+      return;
+    }
+    let cancelled = false;
+    setLoadingDetails(true);
+    fetch(`/api/patients/${selectedPatientId}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!cancelled) setExistingDetails(data);
+      })
+      .catch(() => {
+        if (!cancelled) setExistingDetails(null);
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingDetails(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedPatientId]);
+
+  // Prefill vitals and the department/doctor from the returning patient's most
+  // recent visit so the nurse does not have to re-enter them. Values remain
+  // fully editable. Runs when the saved record finishes loading.
+  useEffect(() => {
+    if (!existingDetails) return;
+    const lastConsultation = existingDetails.consultations?.[0];
+    if (lastConsultation) {
+      setVitals({
+        bloodPressure: lastConsultation.bloodPressure ?? "",
+        oxygenSaturation:
+          lastConsultation.oxygenSaturation != null
+            ? String(lastConsultation.oxygenSaturation)
+            : "",
+        height:
+          lastConsultation.height != null
+            ? String(lastConsultation.height)
+            : "",
+        weight:
+          lastConsultation.weight != null
+            ? String(lastConsultation.weight)
+            : "",
+        temperature:
+          lastConsultation.temperature != null
+            ? String(lastConsultation.temperature)
+            : "",
+        pulse:
+          lastConsultation.pulse != null ? String(lastConsultation.pulse) : "",
+      });
+    }
+    const lastAppointment = existingDetails.appointments?.[0];
+    if (lastAppointment?.departmentId) {
+      // Stash the last doctor; the department-change effect clears the doctor
+      // selection and reloads the list, after which we re-apply it below.
+      pendingDoctorIdRef.current = lastAppointment.doctorId ?? null;
+      setVisit((prev) => ({
+        ...prev,
+        departmentId: lastAppointment.departmentId,
+      }));
+    }
+  }, [existingDetails]);
+
+  // Re-apply the stashed last-visit doctor once its department's doctor list
+  // has finished loading.
+  useEffect(() => {
+    const pending = pendingDoctorIdRef.current;
+    if (pending && doctors.some((d: any) => d.id === pending)) {
+      setVisit((prev) => ({ ...prev, doctorId: pending }));
+      pendingDoctorIdRef.current = null;
+    }
+  }, [doctors]);
+
   const selectPatient = (p: PatientResult) => {
     setSelectedPatient(p);
     setPatientSearch(p.uhid);
@@ -175,6 +270,41 @@ function PatientRegistrationForm() {
     setSelectedPatient(null);
     setPatientSearch("");
     setPatientResults([]);
+  };
+
+  // Switching between New and Follow-up resets any in-progress selection and
+  // prefilled fields so each mode starts clean: "new" shows the new-patient
+  // form, "follow_up" shows the existing-patient search.
+  const handleConsultationTypeChange = (value: string) => {
+    if (value === visit.consultationType) return;
+    pendingDoctorIdRef.current = null;
+    clearPatient();
+    setNewPatient({
+      name: "",
+      mobile: "",
+      gender: "",
+      dateOfBirth: "",
+      age: "",
+      address: "",
+      bloodGroup: "",
+      emergencyContact: "",
+      emergencyContactNumber: "",
+    });
+    setVitals({
+      bloodPressure: "",
+      oxygenSaturation: "",
+      height: "",
+      weight: "",
+      temperature: "",
+      pulse: "",
+    });
+    setVisit((prev) => ({
+      ...prev,
+      consultationType: value,
+      departmentId: "",
+      doctorId: "",
+      time: "",
+    }));
   };
 
   const watchDob = newPatient.dateOfBirth;
@@ -213,6 +343,13 @@ function PatientRegistrationForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+
+    if (visit.consultationType === "follow_up" && !selectedPatient) {
+      const msg = "Please search and select the returning patient first";
+      setError(msg);
+      toast(msg, "error");
+      return;
+    }
 
     if (!selectedPatient) {
       const parsed = patientSchema.safeParse(newPatient);
@@ -340,7 +477,42 @@ function PatientRegistrationForm() {
           </div>
         )}
 
-        {/* Patient Search / Selection */}
+        {/* Consultation Type — placed first because it decides the rest of the
+            form: "New" registers a new patient, "Follow-up" searches for an
+            existing (returning) patient and reuses their saved record. */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+              Consultation Type
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex gap-3">
+              {[
+                { value: "new", label: "New", desc: "First visit — register patient" },
+                {
+                  value: "follow_up",
+                  label: "Follow-up",
+                  desc: "Returning patient — search record",
+                },
+              ].map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => handleConsultationTypeChange(opt.value)}
+                  className={`flex-1 p-3 rounded-lg border text-left transition-all ${visit.consultationType === opt.value ? "bg-blue-50 border-blue-300 ring-1 ring-blue-200" : "bg-white border-gray-200 hover:border-gray-300"}`}
+                >
+                  <p className="font-medium text-sm">{opt.label}</p>
+                  <p className="text-xs text-gray-500">{opt.desc}</p>
+                </button>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Patient Search / Selection — only in Follow-up mode: search for an
+            existing (returning) patient to reuse their saved record. */}
+        {visit.consultationType === "follow_up" && (
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-semibold text-gray-700 uppercase tracking-wide flex items-center gap-2">
@@ -421,9 +593,215 @@ function PatientRegistrationForm() {
             )}
           </CardContent>
         </Card>
+        )}
 
-        {/* New Patient Registration (only when no existing patient selected) */}
-        {!selectedPatient && (
+        {/* Existing Patient Record — for a returning ("old") patient the saved
+            demographics are loaded from the database and shown prefilled here,
+            so they do not have to be re-entered. */}
+        {visit.consultationType === "follow_up" && selectedPatient && (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-semibold text-gray-700 uppercase tracking-wide flex items-center gap-2">
+                <User className="h-4 w-4" /> Existing Patient Record
+                <span className="ml-1 text-[10px] font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-full px-2 py-0.5 normal-case tracking-normal">
+                  Prefilled from database
+                </span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {loadingDetails ? (
+                <div className="flex items-center gap-2 text-sm text-gray-500 py-2">
+                  <Loader2 className="h-4 w-4 animate-spin" /> Loading saved
+                  details…
+                </div>
+              ) : existingDetails ? (
+                <div className="space-y-4">
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  <div>
+                    <p className="text-xs text-gray-500">Full Name</p>
+                    <p className="text-sm font-medium">
+                      {existingDetails.name || "—"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500">Mobile Number</p>
+                    <p className="text-sm font-medium">
+                      {existingDetails.mobile || "—"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500">Gender</p>
+                    <p className="text-sm font-medium capitalize">
+                      {existingDetails.gender || "—"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500">Age</p>
+                    <p className="text-sm font-medium">
+                      {existingDetails.age ?? "—"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500">Blood Group</p>
+                    <p className="text-sm font-medium">
+                      {existingDetails.bloodGroup
+                        ? existingDetails.bloodGroup.replace("_positive", "+").replace("_negative", "-")
+                        : "—"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500">Emergency Contact</p>
+                    <p className="text-sm font-medium">
+                      {existingDetails.emergencyContact
+                        ? `${existingDetails.emergencyContact}${existingDetails.emergencyContactNumber ? ` (${existingDetails.emergencyContactNumber})` : ""}`
+                        : "—"}
+                    </p>
+                  </div>
+                  <div className="col-span-2 md:col-span-3">
+                    <p className="text-xs text-gray-500">Address</p>
+                    <p className="text-sm font-medium">
+                      {existingDetails.address || "—"}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Last Visit — pulled from the patient's most recent
+                    appointment, consultation (vitals) and invoice (billing /
+                    payment). The vitals and doctor are also prefilled into the
+                    editable fields below. */}
+                {(() => {
+                  const appt = existingDetails.appointments?.[0];
+                  const cons = existingDetails.consultations?.[0];
+                  const inv = existingDetails.invoices?.[0];
+                  if (!appt && !cons && !inv) {
+                    return (
+                      <p className="text-xs text-gray-500 border-t pt-3">
+                        No previous visit on record yet.
+                      </p>
+                    );
+                  }
+                  const paid = (inv?.payments || []).reduce(
+                    (s: number, p: any) => s + (p.amount || 0),
+                    0,
+                  );
+                  return (
+                    <div className="border-t pt-3 space-y-3">
+                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-2">
+                        <Clock className="h-3 w-3" /> Last Visit
+                      </p>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div>
+                          <p className="text-xs text-gray-500">Date</p>
+                          <p className="text-sm font-medium">
+                            {appt?.date
+                              ? new Date(appt.date).toLocaleDateString("en-IN")
+                              : "—"}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-500">Time</p>
+                          <p className="text-sm font-medium">
+                            {appt?.time || "—"}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-500">Doctor</p>
+                          <p className="text-sm font-medium">
+                            {appt?.doctor?.user?.name
+                              ? `Dr. ${appt.doctor.user.name}`
+                              : "—"}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-500">Department</p>
+                          <p className="text-sm font-medium">
+                            {appt?.department?.name || "—"}
+                          </p>
+                        </div>
+                      </div>
+                      {cons && (
+                        <div>
+                          <p className="text-xs text-gray-500 mb-1">
+                            Vitals (last recorded)
+                          </p>
+                          <div className="flex flex-wrap gap-2 text-xs">
+                            {cons.bloodPressure && (
+                              <span className="bg-gray-100 rounded px-2 py-0.5">
+                                BP {cons.bloodPressure}
+                              </span>
+                            )}
+                            {cons.pulse != null && (
+                              <span className="bg-gray-100 rounded px-2 py-0.5">
+                                Pulse {cons.pulse}
+                              </span>
+                            )}
+                            {cons.temperature != null && (
+                              <span className="bg-gray-100 rounded px-2 py-0.5">
+                                Temp {cons.temperature}°F
+                              </span>
+                            )}
+                            {cons.oxygenSaturation != null && (
+                              <span className="bg-gray-100 rounded px-2 py-0.5">
+                                SpO2 {cons.oxygenSaturation}%
+                              </span>
+                            )}
+                            {cons.weight != null && (
+                              <span className="bg-gray-100 rounded px-2 py-0.5">
+                                Wt {cons.weight}kg
+                              </span>
+                            )}
+                            {cons.height != null && (
+                              <span className="bg-gray-100 rounded px-2 py-0.5">
+                                Ht {cons.height}cm
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                      {inv && (
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                          <div>
+                            <p className="text-xs text-gray-500">Last Bill</p>
+                            <p className="text-sm font-medium">
+                              ₹{Number(inv.total || 0).toLocaleString("en-IN")}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-gray-500">Paid</p>
+                            <p className="text-sm font-medium">
+                              ₹{paid.toLocaleString("en-IN")}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-gray-500">
+                              Payment Status
+                            </p>
+                            <p className="text-sm font-medium capitalize">
+                              {inv.status || "—"}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                      <p className="text-[11px] text-gray-400">
+                        Vitals and doctor from this visit have been prefilled
+                        below — review and update as needed.
+                      </p>
+                    </div>
+                  );
+                })()}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500 py-2">
+                  Using this patient&apos;s saved record. Capture vitals and
+                  book the visit below.
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* New Patient Registration (only in New consultation mode) */}
+        {visit.consultationType === "new" && (
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
@@ -749,15 +1127,30 @@ function PatientRegistrationForm() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-1">
-              <label className="text-sm font-medium">Date *</label>
-              <Input
-                type="date"
-                value={visit.date}
-                onChange={(e) => setVisit({ ...visit, date: e.target.value })}
-                required
-                min={new Date().toISOString().split("T")[0]}
-              />
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div className="space-y-1 sm:w-72">
+                <label className="text-sm font-medium">Date *</label>
+                <Input
+                  type="date"
+                  value={visit.date}
+                  onChange={(e) => setVisit({ ...visit, date: e.target.value })}
+                  required
+                  min={new Date().toISOString().split("T")[0]}
+                />
+              </div>
+              <div className="space-y-1 sm:w-72">
+                <label className="text-sm font-medium flex items-center gap-1">
+                  <Clock className="h-3 w-3" /> Time (manual)
+                </label>
+                <Input
+                  type="text"
+                  value={visit.time}
+                  onChange={(e) =>
+                    setVisit({ ...visit, time: e.target.value })
+                  }
+                  placeholder="e.g. 05:00 PM"
+                />
+              </div>
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium flex items-center gap-1">
@@ -779,41 +1172,6 @@ function PatientRegistrationForm() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
-              Consultation Type
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex gap-3">
-              {[
-                { value: "new", label: "New", desc: "First visit" },
-                {
-                  value: "follow_up",
-                  label: "Follow-up",
-                  desc: "Previous patient",
-                },
-              ].map((opt) => (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() =>
-                    setVisit((prev) => ({
-                      ...prev,
-                      consultationType: opt.value,
-                    }))
-                  }
-                  className={`flex-1 p-3 rounded-lg border text-left transition-all ${visit.consultationType === opt.value ? "bg-blue-50 border-blue-300 ring-1 ring-blue-200" : "bg-white border-gray-200 hover:border-gray-300"}`}
-                >
-                  <p className="font-medium text-sm">{opt.label}</p>
-                  <p className="text-xs text-gray-500">{opt.desc}</p>
-                </button>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
         <div className="flex justify-between items-center pt-2">
           <Link href="/patients">
             <Button type="button" variant="outline" size="sm">
@@ -826,7 +1184,7 @@ function PatientRegistrationForm() {
             ) : (
               <Save className="mr-2 h-4 w-4" />
             )}
-            {isScheduleFlow ? "Book Visit" : "Register &amp; Book Visit"}
+            {isScheduleFlow ? "Book Visit" : "Register"}
           </Button>
         </div>
       </form>

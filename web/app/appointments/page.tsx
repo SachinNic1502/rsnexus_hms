@@ -59,9 +59,13 @@ export default function AppointmentsPage() {
   const [loading, setLoading] = useState(true)
   const [filterStatus, setFilterStatus] = useState<string>('all')
 
+  const isDoctor = user?.role === 'doctor'
+
+  // Re-run when the filter or the logged-in user changes (doctors get a
+  // scoped list of only their own appointments).
   useEffect(() => {
     fetchAppointments()
-  }, [filterStatus])
+  }, [filterStatus, user])
 
   const fetchAppointments = async () => {
     setLoading(true)
@@ -69,6 +73,16 @@ export default function AppointmentsPage() {
       const params = new URLSearchParams()
       if (filterStatus !== 'all') {
         params.set('status', filterStatus)
+      }
+      // A doctor sees only appointments assigned to them.
+      if (user?.role === 'doctor') {
+        try {
+          const meRes = await fetch('/api/doctors/me')
+          if (meRes.ok) {
+            const me = await meRes.json()
+            if (me?.id) params.set('doctorId', me.id)
+          }
+        } catch { /* fall back to unscoped list if lookup fails */ }
       }
       const res = await fetch(`/api/appointments?${params}`)
       if (res.ok) {
@@ -86,8 +100,10 @@ export default function AppointmentsPage() {
     <div className="p-8">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Appointments</h1>
-          <p className="text-gray-600 mt-1">Manage patient appointments and schedules</p>
+          <h1 className="text-3xl font-bold text-gray-900">{isDoctor ? 'My Appointments' : 'Appointments'}</h1>
+          <p className="text-gray-600 mt-1">
+            {isDoctor ? 'Patients assigned to you' : 'Manage patient appointments and schedules'}
+          </p>
         </div>
         {canBookAppointment && (
           <Link href="/patients/register">
@@ -134,7 +150,15 @@ export default function AppointmentsPage() {
               <Card
                 key={appointment.id}
                 className="hover:shadow-md transition-shadow cursor-pointer"
-                onClick={() => router.push(`/patients/${appointment.patient.id}`)}
+                onClick={() =>
+                  // Doctors go straight into the consultation view (full
+                  // patient details + Add to Prescription + Finish
+                  // Consultation). All other roles keep the existing
+                  // behavior of opening the Patient Profile.
+                  isDoctor
+                    ? router.push(`/opd/consultation/${appointment.id}`)
+                    : router.push(`/patients/${appointment.patient.id}`)
+                }
               >
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">

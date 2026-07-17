@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { handleApiError } from "@/lib/error-handler"
+import { computeDueDate } from "@/lib/utils"
 
 export async function POST(request: NextRequest) {
   try {
@@ -38,9 +39,12 @@ export async function POST(request: NextRequest) {
     const endDate = admission.dischargeDate ? new Date(admission.dischargeDate) : new Date()
     const daysAdmitted = Math.max(1, Math.ceil((endDate.getTime() - admissionDate.getTime()) / (1000 * 60 * 60 * 24)))
 
-    if (admission.room.chargesPerDay > 0) {
+    // Room charges only apply when a bed was actually allocated (by a nurse).
+    // A patient discharged without ever being allocated a bed incurs no room
+    // charge, but is still billed for visits / labs / extras below.
+    if (admission.room && admission.bed && admission.room.chargesPerDay > 0) {
       items.push({
-        description: `${admission.ward.name} - Room ${admission.room.roomNumber}, Bed ${admission.bed.bedNumber} (${admission.room.type})`,
+        description: `${admission.ward?.name ?? "Ward"} - Room ${admission.room.roomNumber}, Bed ${admission.bed.bedNumber} (${admission.room.type})`,
         quantity: daysAdmitted,
         unitPrice: admission.room.chargesPerDay,
         type: "room",
@@ -145,6 +149,7 @@ export async function POST(request: NextRequest) {
         tax: 0,
         discount: 0,
         total: subtotal,
+        dueDate: computeDueDate(),
         items: {
           create: items.map((item) => ({
             description: item.description,

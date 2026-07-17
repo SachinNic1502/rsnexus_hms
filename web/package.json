@@ -1,7 +1,7 @@
 {
   "name": "web",
   "version": "1.0.0",
-  "description": "Rs Nexus Hospital Management System",
+  "description": "Jeevanti Hospitals Management System",
   "main": "index.js",
   "scripts": {
     "dev": "next dev",

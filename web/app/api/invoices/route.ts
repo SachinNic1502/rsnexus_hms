@@ -4,6 +4,7 @@ import { invoiceSchema, invoiceItemSchema } from "@/lib/validations"
 import { handleApiError } from "@/lib/error-handler"
 import type { InvoiceWhereInput } from "@/lib/types"
 import { getToken } from "next-auth/jwt"
+import { computeDueDate } from "@/lib/utils"
 
 const billingRoles = ["super_admin", "hospital_admin", "billing_staff", "nurse"]
 
@@ -69,6 +70,9 @@ export async function POST(request: NextRequest) {
     const invoiceNumber = `INV-${new Date().getFullYear()}-${String(nextNumber).padStart(3, "0")}`
 
     const subtotal = items.reduce((sum: number, item: any) => sum + item.quantity * item.unitPrice, 0)
+    if (discount > subtotal + tax) {
+      return NextResponse.json({ error: "Discount cannot exceed subtotal + tax" }, { status: 400 })
+    }
     const total = subtotal + tax - discount
 
     const invoice = await prisma.invoice.create({
@@ -82,6 +86,7 @@ export async function POST(request: NextRequest) {
         tax,
         discount,
         total,
+        dueDate: computeDueDate(),
         items: {
           create: items.map((item: any) => ({
             description: item.description,

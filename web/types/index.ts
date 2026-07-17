@@ -174,9 +174,10 @@ export interface Admission {
   id: string
   patientId: string
   doctorId: string
-  wardId: string
-  roomId: string
-  bedId: string
+  // Assigned by a nurse after admission; null until a bed is allocated.
+  wardId?: string | null
+  roomId?: string | null
+  bedId?: string | null
   admissionNumber: string
   admissionDate: Date
   dischargeDate?: Date

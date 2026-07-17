@@ -101,7 +101,7 @@ export default function NursesPage() {
                 </div>
                 <div>
                   <label className="text-sm font-medium">Email *</label>
-                  <Input type="email" {...register('email')} placeholder="nurse@rsnexus.com" />
+                  <Input type="email" {...register('email')} placeholder="nurse@jeevantihospitals.com" />
                   {errors.email && <p className="text-xs text-red-500 mt-1">{errors.email.message}</p>}
                 </div>
                 <div>

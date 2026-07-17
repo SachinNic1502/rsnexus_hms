@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { getToken } from "next-auth/jwt"
 import { z } from "zod"
 
 const paymentSchema = z.object({
@@ -31,11 +32,30 @@ export async function POST(
       return NextResponse.json({ error: "Invoice not found" }, { status: 404 })
     }
 
-    const totalPaid = invoice.payments.reduce((sum, p) => sum + p.amount, 0)
-    const remaining = invoice.total - totalPaid
-    if (amount > remaining) {
+    if (invoice.status === "cancelled") {
+      return NextResponse.json({ error: "Cannot record a payment against a cancelled invoice" }, { status: 400 })
+    }
+
+    // Round money to 2 decimals to avoid float drift when comparing against the
+    // remaining balance and deciding paid/partial status.
+    const round2 = (n: number) => Math.round(n * 100) / 100
+    const totalPaid = round2(invoice.payments.reduce((sum, p) => sum + p.amount, 0))
+    const remaining = round2(invoice.total - totalPaid)
+    if (remaining <= 0) {
+      return NextResponse.json({ error: "Invoice is already fully paid" }, { status: 400 })
+    }
+    if (round2(amount) > remaining) {
       return NextResponse.json({ error: `Amount exceeds remaining balance of ₹${remaining}` }, { status: 400 })
     }
+
+    // Record who actually took the payment from the session, not the client.
+    const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET })
+    const receiver =
+      (receivedBy && receivedBy.trim()) ||
+      (token?.name as string) ||
+      (token?.email as string) ||
+      (token?.id as string) ||
+      "System"
 
     const payment = await prisma.payment.create({
       data: {
@@ -43,11 +63,11 @@ export async function POST(
         amount,
         method,
         transactionId: transactionId || undefined,
-        receivedBy: receivedBy || "System",
+        receivedBy: receiver,
       },
     })
 
-    const newTotalPaid = totalPaid + amount
+    const newTotalPaid = round2(totalPaid + amount)
     let newStatus: 'pending' | 'partial' | 'paid' = "pending"
     if (newTotalPaid >= invoice.total) {
       newStatus = "paid"

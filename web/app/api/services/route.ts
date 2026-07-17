@@ -10,10 +10,18 @@ const serviceSchema = z.object({
   description: z.string().optional().or(z.literal("")),
 })
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    // The billing line-item picker wants only active services, but the services
+    // catalog needs to see inactive ones too so an admin can re-activate them
+    // (an inactive service would otherwise vanish from every screen forever).
+    const { searchParams } = new URL(request.url)
+    const includeInactive = searchParams.get("includeInactive") === "true"
     const services = await prisma.service.findMany({
-      where: { isActive: true, isDeleted: { isSet: false } },
+      where: {
+        isDeleted: { isSet: false },
+        ...(includeInactive ? {} : { isActive: true }),
+      },
       orderBy: { name: "asc" },
     })
     return NextResponse.json(services)

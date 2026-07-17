@@ -10,18 +10,41 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const status = searchParams.get("status")
     const date = searchParams.get("date")
+    // Optional date range (inclusive) used by the weekly calendar to load a
+    // whole week at once. Takes precedence over the single `date` param.
+    const from = searchParams.get("from")
+    const to = searchParams.get("to")
     const doctorId = searchParams.get("doctorId")
+    // Opt-in: alongside the given date, also surface earlier appointments
+    // that were never resolved (still scheduled/waiting/in_progress), so a
+    // patient checked in one day and not yet seen doesn't silently drop out
+    // of the queue on the next day. Off by default — existing callers of
+    // this endpoint keep the exact current date-only behavior.
+    const includeOverdue = searchParams.get("includeOverdue") === "true"
 
     const where: AppointmentWhereInput = { isDeleted: { isSet: false } }
     if (status && status !== "all") {
       where.status = status as 'scheduled' | 'waiting' | 'in_progress' | 'completed' | 'cancelled'
     }
-    if (date) {
+    if (from && to) {
+      const rangeStart = new Date(from)
+      rangeStart.setHours(0, 0, 0, 0)
+      const rangeEnd = new Date(to)
+      rangeEnd.setHours(23, 59, 59, 999)
+      where.date = { gte: rangeStart, lte: rangeEnd }
+    } else if (date) {
       const dayStart = new Date(date)
       dayStart.setHours(0, 0, 0, 0)
       const dayEnd = new Date(date)
       dayEnd.setHours(23, 59, 59, 999)
-      where.date = { gte: dayStart, lte: dayEnd }
+      if (includeOverdue) {
+        where.OR = [
+          { date: { gte: dayStart, lte: dayEnd } },
+          { status: { in: ['scheduled', 'waiting', 'in_progress'] }, date: { lt: dayStart } },
+        ]
+      } else {
+        where.date = { gte: dayStart, lte: dayEnd }
+      }
     }
     if (doctorId) {
       where.doctorId = doctorId
@@ -30,7 +53,10 @@ export async function GET(request: NextRequest) {
     const appointments = await prisma.appointment.findMany({
       where,
       include: {
-        patient: true,
+        // Active admission (if any) lets the UI route an admitted patient's
+        // card to the OPD Patient Details (Admission) page instead of the
+        // plain patient profile.
+        patient: { include: { admissions: { where: { status: "admitted" }, select: { id: true }, take: 1 } } },
         doctor: { include: { user: true } },
         department: true,
       },

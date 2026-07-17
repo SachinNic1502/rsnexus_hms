@@ -43,6 +43,10 @@ const reportsOnlyRoutes = [
 ]
 
 function getRouteRole(pathname: string): string | null {
+  // Self-service "current user" endpoint — any authenticated role may read/
+  // update their own record here, unlike the admin-only /api/users routes.
+  if (pathname === "/api/users/me") return null
+
   for (const route of adminOnlyRoutes) {
     if (pathname.startsWith(route)) return "admin"
   }
@@ -71,10 +75,18 @@ function getRouteRole(pathname: string): string | null {
 }
 
 const adminRoles = ["super_admin", "hospital_admin"]
+// Ward / room / bed data is admin-managed (create/edit/delete), but nurses need
+// read-only access to it for the Ward Management and Bed Dashboard screens.
+// These GET-only routes are therefore also readable by nurses; writes stay
+// admin-only.
+const wardReadRoutes = ["/api/wards", "/api/rooms", "/api/beds"]
+const wardReadRoles = ["super_admin", "hospital_admin", "nurse"]
 const doctorRoles = ["doctor", "receptionist"]
 const prescriptionRoles = ["doctor", "receptionist", "nurse"]
 const consultationRoles = ["doctor", "receptionist", "super_admin", "hospital_admin", "nurse"]
-const nurseRoles = ["super_admin", "hospital_admin", "nurse"]
+// Doctors are included so they can admit and discharge patients as part of the
+// Finish Consultation → Admit Patient (IPD) workflow. Existing roles preserved.
+const nurseRoles = ["super_admin", "hospital_admin", "nurse", "doctor"]
 const labRoles = ["super_admin", "hospital_admin", "doctor", "lab_technician"]
 const billingRoles = ["super_admin", "hospital_admin", "billing_staff", "receptionist", "nurse"]
 const reportsRoles = ["super_admin", "hospital_admin", "receptionist"]
@@ -87,7 +99,8 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith("/login") ||
     pathname.startsWith("/_next") ||
     pathname.startsWith("/favicon") ||
-    pathname === "/"
+    pathname === "/" ||
+    /\.(jpg|jpeg|png|svg|webp|gif|ico|json)$/.test(pathname)
   ) {
     return NextResponse.next()
   }
@@ -108,7 +121,20 @@ export async function middleware(request: NextRequest) {
     if (requiredRole) {
       const userRole = token.role as string
       let allowed = false
-      if (requiredRole === "admin") allowed = adminRoles.includes(userRole)
+      if (requiredRole === "admin") {
+        allowed = adminRoles.includes(userRole)
+        // Read-only exception: nurses may GET ward/room/bed data (needed to
+        // display the Ward Management and Bed Dashboard screens). All writes
+        // remain admin-only.
+        if (
+          !allowed &&
+          request.method === "GET" &&
+          wardReadRoutes.some((r) => pathname.startsWith(r)) &&
+          wardReadRoles.includes(userRole)
+        ) {
+          allowed = true
+        }
+      }
       else if (requiredRole === "doctor") allowed = doctorRoles.includes(userRole)
       else if (requiredRole === "prescription") allowed = prescriptionRoles.includes(userRole)
       else if (requiredRole === "consultation") allowed = consultationRoles.includes(userRole)

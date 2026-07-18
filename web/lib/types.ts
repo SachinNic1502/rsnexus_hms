@@ -4,6 +4,14 @@ export interface PatientWhereInput {
   mobile?: string | { contains?: string }
   name?: string | { contains?: string; mode?: 'insensitive' | 'default' }
   isDeleted?: { not?: boolean; isSet?: boolean } | boolean
+  OR?: PatientWhereInput[]
+  AND?: PatientWhereInput[]
+  // Relational scoping used to restrict a patient list/detail lookup to
+  // patients linked to a given doctor (via appointment, admission, or
+  // consultation) — Patient has no direct doctorId column.
+  appointments?: { some: { doctorId: string } }
+  admissions?: { some: { doctorId: string } }
+  consultations?: { some: { doctorId: string } }
 }
 
 export interface AppointmentWhereInput {

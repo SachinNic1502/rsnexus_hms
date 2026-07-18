@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
     // this endpoint keep the exact current date-only behavior.
     const includeOverdue = searchParams.get("includeOverdue") === "true"
 
-    const where: AppointmentWhereInput = { isDeleted: { isSet: false } }
+    const where: AppointmentWhereInput = { OR: [{ isDeleted: { isSet: false } }, { isDeleted: false }] }
     if (status && status !== "all") {
       where.status = status as 'scheduled' | 'waiting' | 'in_progress' | 'completed' | 'cancelled'
     }
@@ -50,18 +50,34 @@ export async function GET(request: NextRequest) {
       where.doctorId = doctorId
     }
 
-    const appointments = await prisma.appointment.findMany({
+    // Patient is a required relation, but some appointments point at a
+    // patientId whose Patient no longer exists (deleted without cleaning up
+    // its appointments). Prisma's include throws "Field patient is required
+    // ... got null" the moment one of those is touched, so patients are
+    // fetched separately and joined in, silently skipping any appointment
+    // whose patient can no longer be found instead of 500ing the whole list.
+    const rawAppointments = await prisma.appointment.findMany({
       where,
       include: {
-        // Active admission (if any) lets the UI route an admitted patient's
-        // card to the OPD Patient Details (Admission) page instead of the
-        // plain patient profile.
-        patient: { include: { admissions: { where: { status: "admitted" }, select: { id: true }, take: 1 } } },
         doctor: { include: { user: true } },
         department: true,
       },
       orderBy: { createdAt: "desc" },
     })
+
+    const patientIds = [...new Set(rawAppointments.map((a) => a.patientId))]
+    const patients = await prisma.patient.findMany({
+      where: { id: { in: patientIds } },
+      // Active admission (if any) lets the UI route an admitted patient's
+      // card to the OPD Patient Details (Admission) page instead of the
+      // plain patient profile.
+      include: { admissions: { where: { status: "admitted" }, select: { id: true }, take: 1 } },
+    })
+    const patientById = new Map(patients.map((p) => [p.id, p]))
+
+    const appointments = rawAppointments
+      .filter((a) => patientById.has(a.patientId))
+      .map((a) => ({ ...a, patient: patientById.get(a.patientId)! }))
 
     return NextResponse.json(appointments)
   } catch (error) {
@@ -90,7 +106,7 @@ export async function POST(request: NextRequest) {
         date: { gte: dayStart, lte: dayEnd },
         time,
         status: { not: 'cancelled' },
-        isDeleted: { isSet: false },
+        OR: [{ isDeleted: { isSet: false } }, { isDeleted: false }],
       },
       select: { id: true, appointmentNumber: true },
     })
@@ -112,7 +128,7 @@ export async function POST(request: NextRequest) {
       where: {
         doctorId,
         date: { gte: dayStart, lte: dayEnd },
-        isDeleted: { isSet: false },
+        OR: [{ isDeleted: { isSet: false } }, { isDeleted: false }],
       },
     }) + 1
 

@@ -12,13 +12,13 @@ const wardSchema = z.object({
 export async function GET() {
   try {
     const wards = await prisma.ward.findMany({
-      where: { isDeleted: { isSet: false } },
+      where: { OR: [{ isDeleted: { isSet: false } }, { isDeleted: false }] },
       include: {
         rooms: {
-          where: { isDeleted: { isSet: false } },
+          where: { OR: [{ isDeleted: { isSet: false } }, { isDeleted: false }] },
           include: {
             beds: {
-              where: { isDeleted: { isSet: false } },
+              where: { OR: [{ isDeleted: { isSet: false } }, { isDeleted: false }] },
               include: {
                 // The bed's current occupant (if any), so the Ward Management
                 // screen shows the patient name on occupied beds. A bed has

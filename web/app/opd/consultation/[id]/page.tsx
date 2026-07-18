@@ -254,6 +254,13 @@ export default function ConsultationPage() {
     const doctor = aptData.doctor as Record<string, unknown>
     const q = new URLSearchParams({
       patientId: String(patient.id),
+      // Carried along so the Admit form can show the selected patient
+      // immediately without a fresh lookup — the admitting doctor (chosen via
+      // the form's own Attending Doctor dropdown) isn't necessarily the
+      // currently logged-in session, so a lookup scoped to "my own patients"
+      // would otherwise come back empty here.
+      patientName: String(patient.name),
+      patientUhid: String(patient.uhid),
       appointmentId: String(aptData.id),
       doctorId: String(doctor.id),
     })

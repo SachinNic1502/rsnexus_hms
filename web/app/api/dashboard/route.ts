@@ -12,6 +12,13 @@ export async function GET(request: NextRequest) {
   try {
     const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET })
     const canViewBilling = BILLING_VIEW_ROLES.includes(token?.role as string)
+    // A doctor's dashboard is scoped to their own appointments/admissions —
+    // other roles keep the existing hospital-wide figures.
+    let doctorId: string | undefined
+    if (token?.role === "doctor") {
+      const doctor = await prisma.doctor.findUnique({ where: { userId: token.id as string }, select: { id: true } })
+      doctorId = doctor?.id ?? "__none__"
+    }
     const today = new Date()
     today.setHours(0, 0, 0, 0)
     const tomorrow = new Date(today)
@@ -38,12 +45,13 @@ export async function GET(request: NextRequest) {
         where: {
           date: { gte: today, lt: tomorrow },
           status: { not: "cancelled" },
-          isDeleted: { isSet: false },
+          OR: [{ isDeleted: { isSet: false } }, { isDeleted: false }],
+          ...(doctorId ? { doctorId } : {}),
         },
       }),
-      prisma.admission.count({ where: { status: "admitted" } }),
-      prisma.bed.count({ where: { status: { not: "maintenance" }, isDeleted: { isSet: false } } }),
-      prisma.bed.count({ where: { status: "occupied", isDeleted: { isSet: false } } }),
+      prisma.admission.count({ where: { status: "admitted", ...(doctorId ? { doctorId } : {}) } }),
+      prisma.bed.count({ where: { status: { not: "maintenance" }, OR: [{ isDeleted: { isSet: false } }, { isDeleted: false }] } }),
+      prisma.bed.count({ where: { status: "occupied", OR: [{ isDeleted: { isSet: false } }, { isDeleted: false }] } }),
       prisma.invoice.count({ where: { status: { in: ["pending", "partial"] } } }),
       // Phase 8 billing metrics
       prisma.invoice.count({ where: { status: "paid" } }),
@@ -69,13 +77,22 @@ export async function GET(request: NextRequest) {
         include: { user: true, department: true },
       }),
       prisma.appointment.findMany({
-        where: { date: { gte: today, lt: tomorrow }, status: { not: "cancelled" }, isDeleted: { isSet: false } },
-        include: { patient: true, doctor: { include: { user: true } }, department: true },
+        where: {
+          date: { gte: today, lt: tomorrow },
+          status: { not: "cancelled" },
+          OR: [{ isDeleted: { isSet: false } }, { isDeleted: false }],
+          ...(doctorId ? { doctorId } : {}),
+        },
+        // Patient is fetched separately below — some appointments point at a
+        // patientId whose Patient no longer exists, and Prisma's include
+        // throws "Field patient is required ... got null" the moment one of
+        // those is touched.
+        include: { doctor: { include: { user: true } }, department: true },
         orderBy: { createdAt: "desc" },
         take: 10,
       }),
       prisma.admission.findMany({
-        where: { status: "admitted" },
+        where: { status: "admitted", ...(doctorId ? { doctorId } : {}) },
         include: {
           patient: true,
           ward: true,
@@ -86,6 +103,18 @@ export async function GET(request: NextRequest) {
         take: 5,
       }),
     ])
+
+    // Join valid patients back onto today's appointments, silently skipping
+    // any appointment whose patient can no longer be found instead of
+    // 500ing the whole dashboard.
+    const recentAppointmentPatientIds = [...new Set(recentAppointments.map((a) => a.patientId))]
+    const recentAppointmentPatients = await prisma.patient.findMany({
+      where: { id: { in: recentAppointmentPatientIds } },
+    })
+    const recentAppointmentPatientById = new Map(recentAppointmentPatients.map((p) => [p.id, p]))
+    const recentAppointmentsWithPatient = recentAppointments
+      .filter((a) => recentAppointmentPatientById.has(a.patientId))
+      .map((a) => ({ ...a, patient: recentAppointmentPatientById.get(a.patientId)! }))
 
     const pendingBillTotal = await prisma.invoice.aggregate({
       where: { status: { in: ["pending", "partial"] } },
@@ -150,7 +179,7 @@ export async function GET(request: NextRequest) {
         department: d.department.name,
         available: d.available,
       })),
-      recentAppointments: recentAppointments.map((a) => ({
+      recentAppointments: recentAppointmentsWithPatient.map((a) => ({
         id: a.id,
         patient: a.patient.name,
         doctor: `Dr. ${a.doctor.user.name}`,

@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
       let medicineId = m.medicineId || ""
 
       if (!medicineId && medicineName) {
-        let medicine = await prisma.medicine.findFirst({ where: { name: { equals: medicineName, mode: "insensitive" }, isDeleted: { isSet: false } } })
+        let medicine = await prisma.medicine.findFirst({ where: { name: { equals: medicineName, mode: "insensitive" }, OR: [{ isDeleted: { isSet: false } }, { isDeleted: false }] } })
         if (!medicine) {
           medicine = await prisma.medicine.create({ data: { name: medicineName, unit: "tablet", price: 0, stock: 0 } })
         }

@@ -13,13 +13,13 @@ import { handleApiError } from "@/lib/error-handler"
 export async function GET() {
   try {
     const wards = await prisma.ward.findMany({
-      where: { isDeleted: { isSet: false } },
+      where: { OR: [{ isDeleted: { isSet: false } }, { isDeleted: false }] },
       include: {
         rooms: {
-          where: { isDeleted: { isSet: false } },
+          where: { OR: [{ isDeleted: { isSet: false } }, { isDeleted: false }] },
           include: {
             beds: {
-              where: { isDeleted: { isSet: false } },
+              where: { OR: [{ isDeleted: { isSet: false } }, { isDeleted: false }] },
               orderBy: { bedNumber: "asc" },
             },
           },

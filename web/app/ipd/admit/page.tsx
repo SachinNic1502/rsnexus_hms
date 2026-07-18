@@ -45,10 +45,22 @@ function IPDAdmitForm() {
     fetch('/api/doctors').then(r => r.json()).then(d => setDoctors(Array.isArray(d) ? d : []))
   }, [])
 
-  // Prefill the patient when admitting straight from a consultation.
+  // Prefill the patient when admitting straight from a consultation. Name/
+  // UHID are carried in the URL (set by the consultation page) so this never
+  // depends on a fresh lookup — the admitting doctor isn't necessarily the
+  // currently logged-in session, so a "my own patients" scoped lookup would
+  // otherwise come back empty here and leave the form stuck with no patient
+  // selected.
   useEffect(() => {
     const patientId = searchParams.get('patientId')
     if (!patientId) return
+    const patientName = searchParams.get('patientName')
+    const patientUhid = searchParams.get('patientUhid')
+    if (patientName && patientUhid) {
+      setSelectedPatient({ id: patientId, name: patientName, uhid: patientUhid })
+      setPatientSearch(patientUhid)
+      return
+    }
     fetch(`/api/patients/${patientId}`)
       .then(r => (r.ok ? r.json() : null))
       .then(p => {

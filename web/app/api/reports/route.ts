@@ -35,7 +35,7 @@ async function dailyReport(dateStr: string) {
 
   const [appointments, admissions, discharges, invoices, labOrders] = await Promise.all([
     prisma.appointment.findMany({
-      where: { date: { gte: date, lt: nextDay }, isDeleted: { isSet: false } },
+      where: { date: { gte: date, lt: nextDay }, OR: [{ isDeleted: { isSet: false } }, { isDeleted: false }] },
       include: { patient: true, doctor: { include: { user: true } }, department: true },
     }),
     prisma.admission.findMany({
@@ -116,7 +116,7 @@ async function monthlyReport(month: string) {
 
   const [appointments, admissions, discharges, invoices, labOrders, patients] = await Promise.all([
     prisma.appointment.findMany({
-      where: { date: { gte: startDate, lt: endDate }, isDeleted: { isSet: false } },
+      where: { date: { gte: startDate, lt: endDate }, OR: [{ isDeleted: { isSet: false } }, { isDeleted: false }] },
       include: { doctor: { include: { user: true } }, department: true },
     }),
     prisma.admission.findMany({
@@ -134,7 +134,7 @@ async function monthlyReport(month: string) {
       where: { orderedAt: { gte: startDate, lt: endDate } },
     }),
     prisma.patient.findMany({
-      where: { createdAt: { gte: startDate, lt: endDate }, isDeleted: { isSet: false } },
+      where: { createdAt: { gte: startDate, lt: endDate }, OR: [{ isDeleted: { isSet: false } }, { isDeleted: false }] },
     }),
   ])
 
@@ -262,7 +262,7 @@ async function doctorPerformanceReport(month: string, doctorId?: string | null) 
 
   const where: any = {
     createdAt: { gte: startDate, lt: endDate },
-    isDeleted: { isSet: false },
+    OR: [{ isDeleted: { isSet: false } }, { isDeleted: false }],
   }
   if (doctorId) where.doctorId = doctorId
 
@@ -348,13 +348,13 @@ async function doctorPerformanceReport(month: string, doctorId?: string | null) 
 async function bedOccupancyReport() {
   const [wards, totalBeds, occupiedBeds, admittedPatients, recentDischarges] = await Promise.all([
     prisma.ward.findMany({
-      where: { isDeleted: { isSet: false } },
+      where: { OR: [{ isDeleted: { isSet: false } }, { isDeleted: false }] },
       include: {
         rooms: {
-          where: { isDeleted: { isSet: false } },
+          where: { OR: [{ isDeleted: { isSet: false } }, { isDeleted: false }] },
           include: {
             beds: {
-              where: { isDeleted: { isSet: false } },
+              where: { OR: [{ isDeleted: { isSet: false } }, { isDeleted: false }] },
               include: {
                 // Only the current (active) admission occupies the bed; a bed
                 // has many admissions over time, so filter to the admitted one.
@@ -369,8 +369,8 @@ async function bedOccupancyReport() {
         },
       },
     }),
-    prisma.bed.count({ where: { status: { not: "maintenance" }, isDeleted: { isSet: false } } }),
-    prisma.bed.count({ where: { status: "occupied", isDeleted: { isSet: false } } }),
+    prisma.bed.count({ where: { status: { not: "maintenance" }, OR: [{ isDeleted: { isSet: false } }, { isDeleted: false }] } }),
+    prisma.bed.count({ where: { status: "occupied", OR: [{ isDeleted: { isSet: false } }, { isDeleted: false }] } }),
     prisma.admission.findMany({
       where: { status: "admitted" },
       include: {

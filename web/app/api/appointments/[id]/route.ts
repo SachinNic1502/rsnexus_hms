@@ -20,7 +20,7 @@ export async function GET(
   try {
     const { id } = await params
     const appointment = await prisma.appointment.findFirst({
-      where: { id, isDeleted: { isSet: false } },
+      where: { id, OR: [{ isDeleted: { isSet: false } }, { isDeleted: false }] },
       include: {
         patient: true,
         doctor: { include: { user: true } },
@@ -87,7 +87,7 @@ export async function PUT(
           time: checkTime,
           status: { not: "cancelled" },
           id: { not: id },
-          isDeleted: { isSet: false },
+          OR: [{ isDeleted: { isSet: false } }, { isDeleted: false }],
         },
         select: { id: true, appointmentNumber: true },
       })
@@ -109,7 +109,7 @@ export async function PUT(
           where: {
             doctorId: checkDoctor,
             date: { gte: countDayStart, lte: countDayEnd },
-            isDeleted: { isSet: false },
+            OR: [{ isDeleted: { isSet: false } }, { isDeleted: false }],
             // Exclude this appointment so rescheduling it doesn't count itself
             // and inflate its own token (e.g. the only appointment that day
             // would otherwise become token 2 instead of 1).

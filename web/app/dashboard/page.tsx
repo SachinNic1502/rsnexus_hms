@@ -90,6 +90,10 @@ export default function DashboardPage() {
 
   useEffect(() => {
     fetchDashboard()
+    // Keep stats/lists fresh without a manual reload — quiet background
+    // refresh (fetchDashboard doesn't toggle `loading`, so no flicker).
+    const interval = setInterval(fetchDashboard, 15000)
+    return () => clearInterval(interval)
   }, [])
 
   const fetchDashboard = async () => {

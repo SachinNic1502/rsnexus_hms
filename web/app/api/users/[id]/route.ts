@@ -54,7 +54,7 @@ export async function PUT(
     // Don't let the last active super_admin be deactivated or demoted away.
     if (target.role === "super_admin" && (wouldDeactivate || (wouldDemote && data.role !== "super_admin"))) {
       const activeSuperAdmins = await prisma.user.count({
-        where: { role: "super_admin", isActive: true, isDeleted: { isSet: false } },
+        where: { role: "super_admin", isActive: true, OR: [{ isDeleted: { isSet: false } }, { isDeleted: false }] },
       })
       if (activeSuperAdmins <= 1) {
         return NextResponse.json({ error: "Cannot deactivate or demote the last super admin" }, { status: 400 })

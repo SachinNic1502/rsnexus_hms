@@ -26,15 +26,25 @@ export async function GET(request: NextRequest) {
       where.patientId = patientId
     }
 
-    const invoices = await prisma.invoice.findMany({
+    // Patient is resolved separately — some invoices point at a patientId
+    // whose Patient no longer exists, and Prisma's include throws "Field
+    // patient is required ... got null" the moment one of those is touched.
+    const rawInvoices = await prisma.invoice.findMany({
       where,
       include: {
-        patient: true,
         items: true,
         payments: true,
       },
       orderBy: { createdAt: "desc" },
     })
+
+    const patientIds = [...new Set(rawInvoices.map((i) => i.patientId))]
+    const patients = await prisma.patient.findMany({ where: { id: { in: patientIds } } })
+    const patientById = new Map(patients.map((p) => [p.id, p]))
+
+    const invoices = rawInvoices
+      .filter((i) => patientById.has(i.patientId))
+      .map((i) => ({ ...i, patient: patientById.get(i.patientId)! }))
 
     return NextResponse.json(invoices)
   } catch (error) {

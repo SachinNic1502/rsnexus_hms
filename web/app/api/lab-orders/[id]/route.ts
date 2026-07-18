@@ -10,7 +10,6 @@ export async function GET(
     const labOrder = await prisma.labOrder.findUnique({
       where: { id },
       include: {
-        patient: true,
         doctor: { include: { user: true } },
         tests: true,
         report: true,
@@ -21,7 +20,15 @@ export async function GET(
       return NextResponse.json({ error: "Lab order not found" }, { status: 404 })
     }
 
-    return NextResponse.json(labOrder)
+    // Patient is resolved separately — some lab orders point at a patientId
+    // whose Patient no longer exists, and Prisma's include throws "Field
+    // patient is required ... got null" the moment one of those is touched.
+    const patient = await prisma.patient.findUnique({ where: { id: labOrder.patientId } })
+    if (!patient) {
+      return NextResponse.json({ error: "Lab order not found" }, { status: 404 })
+    }
+
+    return NextResponse.json({ ...labOrder, patient })
   } catch (error) {
     return NextResponse.json({ error: "Failed to fetch lab order" }, { status: 500 })
   }
@@ -45,14 +52,15 @@ export async function PUT(
         where: { id },
         data: updateData,
         include: {
-          patient: true,
           doctor: { include: { user: true } },
           tests: true,
           report: true,
         },
       })
 
-      return NextResponse.json(labOrder)
+      const patient = await prisma.patient.findUnique({ where: { id: labOrder.patientId } })
+
+      return NextResponse.json({ ...labOrder, patient })
     }
 
     return NextResponse.json({ error: "Invalid update" }, { status: 400 })

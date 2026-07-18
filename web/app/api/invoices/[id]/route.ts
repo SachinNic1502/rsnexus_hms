@@ -13,7 +13,6 @@ export async function GET(
     const invoice = await prisma.invoice.findUnique({
       where: { id },
       include: {
-        patient: true,
         items: true,
         payments: true,
         admission: true,
@@ -24,7 +23,15 @@ export async function GET(
       return NextResponse.json({ error: "Invoice not found" }, { status: 404 })
     }
 
-    return NextResponse.json(invoice)
+    // Patient is resolved separately — some invoices point at a patientId
+    // whose Patient no longer exists, and Prisma's include throws "Field
+    // patient is required ... got null" the moment one of those is touched.
+    const patient = await prisma.patient.findUnique({ where: { id: invoice.patientId } })
+    if (!patient) {
+      return NextResponse.json({ error: "Invoice not found" }, { status: 404 })
+    }
+
+    return NextResponse.json({ ...invoice, patient })
   } catch (error) {
     return NextResponse.json({ error: "Failed to fetch invoice" }, { status: 500 })
   }
@@ -78,13 +85,14 @@ export async function PUT(
       where: { id },
       data,
       include: {
-        patient: true,
         items: true,
         payments: true,
       },
     })
 
-    return NextResponse.json(invoice)
+    const patient = await prisma.patient.findUnique({ where: { id: invoice.patientId } })
+
+    return NextResponse.json({ ...invoice, patient })
   } catch (error) {
     return NextResponse.json({ error: "Failed to update invoice" }, { status: 500 })
   }

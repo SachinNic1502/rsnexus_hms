@@ -18,10 +18,12 @@ export async function GET(request: NextRequest) {
       where.doctorId = doctorId
     }
 
-    const admissions = await prisma.admission.findMany({
+    // Patient is resolved separately — some admissions point at a patientId
+    // whose Patient no longer exists, and Prisma's include throws "Field
+    // patient is required ... got null" the moment one of those is touched.
+    const rawAdmissions = await prisma.admission.findMany({
       where,
       include: {
-        patient: true,
         doctor: { include: { user: true } },
         ward: true,
         room: true,
@@ -29,6 +31,14 @@ export async function GET(request: NextRequest) {
       },
       orderBy: { admissionDate: "desc" },
     })
+
+    const patientIds = [...new Set(rawAdmissions.map((a) => a.patientId))]
+    const patients = await prisma.patient.findMany({ where: { id: { in: patientIds } } })
+    const patientById = new Map(patients.map((p) => [p.id, p]))
+
+    const admissions = rawAdmissions
+      .filter((a) => patientById.has(a.patientId))
+      .map((a) => ({ ...a, patient: patientById.get(a.patientId)! }))
 
     return NextResponse.json(admissions)
   } catch (error) {

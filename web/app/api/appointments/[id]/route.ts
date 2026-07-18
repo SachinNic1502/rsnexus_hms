@@ -22,7 +22,6 @@ export async function GET(
     const appointment = await prisma.appointment.findFirst({
       where: { id, OR: [{ isDeleted: { isSet: false } }, { isDeleted: false }] },
       include: {
-        patient: true,
         doctor: { include: { user: true } },
         department: true,
         consultation: true,
@@ -33,7 +32,15 @@ export async function GET(
       return NextResponse.json({ error: "Appointment not found" }, { status: 404 })
     }
 
-    return NextResponse.json(appointment)
+    // Patient is resolved separately — some appointments point at a patientId
+    // whose Patient no longer exists, and Prisma's include throws "Field
+    // patient is required ... got null" the moment one of those is touched.
+    const patient = await prisma.patient.findUnique({ where: { id: appointment.patientId } })
+    if (!patient) {
+      return NextResponse.json({ error: "Appointment not found" }, { status: 404 })
+    }
+
+    return NextResponse.json({ ...appointment, patient })
   } catch {
     return NextResponse.json({ error: "Failed to fetch appointment" }, { status: 500 })
   }
@@ -123,13 +130,14 @@ export async function PUT(
       where: { id },
       data,
       include: {
-        patient: true,
         doctor: { include: { user: true } },
         department: true,
       },
     })
 
-    return NextResponse.json(appointment)
+    const patient = await prisma.patient.findUnique({ where: { id: appointment.patientId } })
+
+    return NextResponse.json({ ...appointment, patient })
   } catch {
     return NextResponse.json({ error: "Failed to update appointment" }, { status: 500 })
   }

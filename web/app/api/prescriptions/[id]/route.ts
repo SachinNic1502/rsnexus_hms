@@ -20,7 +20,6 @@ export async function GET(
     const prescription = await prisma.prescription.findUnique({
       where: { id },
       include: {
-        patient: true,
         doctor: { include: { user: true } },
         consultation: true,
         medicines: true,
@@ -31,7 +30,16 @@ export async function GET(
       return NextResponse.json({ error: "Prescription not found" }, { status: 404 })
     }
 
-    return NextResponse.json(prescription)
+    // Patient is resolved separately — some prescriptions point at a
+    // patientId whose Patient no longer exists, and Prisma's include throws
+    // "Field patient is required ... got null" the moment one of those is
+    // touched.
+    const patient = await prisma.patient.findUnique({ where: { id: prescription.patientId } })
+    if (!patient) {
+      return NextResponse.json({ error: "Prescription not found" }, { status: 404 })
+    }
+
+    return NextResponse.json({ ...prescription, patient })
   } catch (error) {
     return NextResponse.json({ error: "Failed to fetch prescription" }, { status: 500 })
   }
@@ -69,10 +77,12 @@ export async function PUT(
 
     const updated = await prisma.prescription.findUnique({
       where: { id },
-      include: { patient: true, doctor: { include: { user: true } }, consultation: true, medicines: true },
+      include: { doctor: { include: { user: true } }, consultation: true, medicines: true },
     })
 
-    return NextResponse.json(updated)
+    const patient = updated ? await prisma.patient.findUnique({ where: { id: updated.patientId } }) : null
+
+    return NextResponse.json(updated ? { ...updated, patient } : updated)
   } catch (error) {
     console.error("PUT prescription error:", error)
     return NextResponse.json({ error: "Failed to update prescription" }, { status: 500 })

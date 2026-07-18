@@ -180,8 +180,17 @@ async function revenueReport(month: string) {
 
   const invoices = await prisma.invoice.findMany({
     where: { createdAt: { gte: startDate, lt: endDate } },
-    include: { items: true, payments: true, patient: true },
+    include: { items: true, payments: true },
   })
+
+  // Patient is resolved separately — some invoices point at a patientId whose
+  // Patient no longer exists, and Prisma's include throws "Field patient is
+  // required ... got null" the moment one of those is touched. Revenue totals
+  // below don't depend on the patient relation at all; only the topPatients
+  // display name does, with a fallback for an unresolved patient.
+  const invoicePatientIds = [...new Set(invoices.map((inv) => inv.patientId))]
+  const invoicePatients = await prisma.patient.findMany({ where: { id: { in: invoicePatientIds } } })
+  const invoicePatientNameById = new Map(invoicePatients.map((p) => [p.id, p.name]))
 
   const totalRevenue = invoices.reduce((sum, inv) => sum + inv.total, 0)
   const totalCollected = invoices.reduce(
@@ -246,7 +255,7 @@ async function revenueReport(month: string) {
           existing.total += inv.total
           existing.invoices++
         } else {
-          acc.push({ patientId: inv.patientId, name: inv.patient.name, total: inv.total, invoices: 1 })
+          acc.push({ patientId: inv.patientId, name: invoicePatientNameById.get(inv.patientId) ?? "Unknown patient", total: inv.total, invoices: 1 })
         }
         return acc
       }, [])
@@ -269,7 +278,11 @@ async function doctorPerformanceReport(month: string, doctorId?: string | null) 
   const [appointments, consultations, labOrders, prescriptions] = await Promise.all([
     prisma.appointment.findMany({
       where,
-      include: { doctor: { include: { user: true, department: true } }, patient: true },
+      // Patient is never read below — only `doctor` is used — so it isn't
+      // included here. Some appointments point at a patientId whose Patient
+      // no longer exists, and Prisma's include throws "Field patient is
+      // required ... got null" the moment one of those is touched.
+      include: { doctor: { include: { user: true, department: true } } },
     }),
     prisma.consultation.findMany({
       where: {

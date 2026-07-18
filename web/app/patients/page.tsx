@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { Search, Plus, User, Phone, Loader2, Users } from 'lucide-react'
 import Link from 'next/link'
 import { useToast } from '@/components/ui/toast'
+import { useAuth } from '@/lib/auth-context'
 
 interface Patient {
   id: string
@@ -79,6 +80,9 @@ const STATUS_TABS: { key: WorkflowStatusKey | 'all'; label: string }[] = [
 
 export default function PatientsPage() {
   const { toast } = useToast()
+  const { user } = useAuth()
+  // Registering a patient is a front-desk/receptionist action, not an admin one.
+  const isAdmin = user?.role === 'super_admin' || user?.role === 'hospital_admin'
   const [patients, setPatients] = useState<Patient[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
@@ -200,9 +204,11 @@ export default function PatientsPage() {
             <div className="text-center py-12">
               <Users className="h-12 w-12 text-gray-300 mx-auto mb-3" />
               <p className="text-gray-500">No patients found</p>
-              <Link href="/patients/register">
-                <Button className="mt-4" size="sm">Register Patient</Button>
-              </Link>
+              {!isAdmin && (
+                <Link href="/patients/register">
+                  <Button className="mt-4" size="sm">Register Patient</Button>
+                </Link>
+              )}
             </div>
           ) : (
             filteredPatients.map((patient) => (

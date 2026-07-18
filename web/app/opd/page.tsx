@@ -174,7 +174,9 @@ export default function OPDPage() {
                         <Button size="sm" variant="outline">Continue</Button>
                       </Link>
                     )}
-                    {apt.status === 'completed' && (
+                    {/* Billing is a receptionist/billing_staff/admin concern,
+                        not a doctor one — see RBAC table. */}
+                    {apt.status === 'completed' && user?.role !== 'doctor' && (
                       <Link href={`/billing?patientId=${apt.patient.id}`}>
                         <Button size="sm" variant="ghost"><Receipt className="mr-1 h-3 w-3" /> Bill</Button>
                       </Link>

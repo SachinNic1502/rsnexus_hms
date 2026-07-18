@@ -289,7 +289,9 @@ async function doctorPerformanceReport(month: string, doctorId?: string | null) 
         createdAt: { gte: startDate, lt: endDate },
         ...(doctorId ? { doctorId } : {}),
       },
-      include: { doctor: { include: { user: true, department: true } }, patient: true },
+      // Patient is never read below — only `doctor` is used — so it isn't
+      // included here. Same crash risk as the appointments query above.
+      include: { doctor: { include: { user: true, department: true } } },
     }),
     prisma.labOrder.findMany({
       where: {

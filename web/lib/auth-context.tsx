@@ -1,6 +1,6 @@
 "use client"
 
-import React, { createContext, useContext } from 'react'
+import React, { createContext, useContext, useMemo } from 'react'
 import { useSession, signIn, signOut } from 'next-auth/react'
 import { User, UserRole } from '@/types'
 
@@ -18,12 +18,20 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { data: session, status } = useSession()
 
-  const user = session?.user ? {
-    id: session.user.id,
-    email: session.user.email || '',
-    name: session.user.name || '',
-    role: session.user.role || 'receptionist',
-  } : null
+  // Memoized on the underlying primitive fields (not `session`/`session.user`
+  // itself) so `user` keeps a stable reference across re-renders whenever the
+  // actual session data hasn't changed. Without this, pages whose effects
+  // depend on `user` (e.g. appointments, opd) refetch on every unrelated
+  // re-render of the provider tree, since a new object was handed to them
+  // each time even though nothing about the session had actually changed.
+  const user = useMemo(() => (
+    session?.user ? {
+      id: session.user.id,
+      email: session.user.email || '',
+      name: session.user.name || '',
+      role: session.user.role || 'receptionist',
+    } : null
+  ), [session?.user?.id, session?.user?.email, session?.user?.name, session?.user?.role])
 
   const login = async (email: string, password: string): Promise<boolean> => {
     const result = await signIn('credentials', {

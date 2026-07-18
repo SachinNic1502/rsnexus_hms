@@ -3,6 +3,8 @@ import { getServerSession } from "next-auth"
 import { prisma } from "@/lib/prisma"
 import { authOptions } from "@/lib/auth"
 import { patientSchema } from "@/lib/validations"
+import { getAuthUser } from "@/lib/api-utils"
+import type { PatientWhereInput } from "@/lib/types"
 
 export async function GET(
   request: NextRequest,
@@ -10,11 +12,29 @@ export async function GET(
 ) {
   try {
     const { id } = await params
+
+    // A doctor may only view a patient assigned to them — i.e. a patient they
+    // have an appointment, admission, or consultation with. Everyone else
+    // keeps the existing unrestricted lookup.
+    const authUser = await getAuthUser(request)
+    const doctorScope: PatientWhereInput[] = []
+    if (authUser?.role === "doctor") {
+      const doctor = await prisma.doctor.findUnique({ where: { userId: authUser.id }, select: { id: true } })
+      const doctorId = doctor?.id ?? "__none__"
+      doctorScope.push({
+        OR: [
+          { appointments: { some: { doctorId } } },
+          { admissions: { some: { doctorId } } },
+          { consultations: { some: { doctorId } } },
+        ],
+      })
+    }
+
     const patient = await prisma.patient.findFirst({
-      where: { id, isDeleted: { isSet: false } },
+      where: { id, OR: [{ isDeleted: { isSet: false } }, { isDeleted: false }], ...(doctorScope.length ? { AND: doctorScope } : {}) },
       include: {
         appointments: {
-          where: { isDeleted: { isSet: false } },
+          where: { OR: [{ isDeleted: { isSet: false } }, { isDeleted: false }] },
           include: { doctor: { include: { user: true } }, department: true },
           orderBy: { createdAt: "desc" },
           take: 10,
@@ -68,7 +88,7 @@ export async function PUT(
       return NextResponse.json({ error: "Validation failed", details: messages }, { status: 400 })
     }
 
-    const existing = await prisma.patient.findFirst({ where: { id, isDeleted: { isSet: false } } })
+    const existing = await prisma.patient.findFirst({ where: { id, OR: [{ isDeleted: { isSet: false } }, { isDeleted: false }] } })
     if (!existing) {
       return NextResponse.json({ error: "Patient not found" }, { status: 404 })
     }

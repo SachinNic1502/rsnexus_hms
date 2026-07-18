@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma"
 import { patientSchema } from "@/lib/validations"
 import { handleApiError } from "@/lib/error-handler"
 import { generateSequentialNumber } from "@/lib/utils"
+import { getAuthUser } from "@/lib/api-utils"
 import type { PatientWhereInput } from "@/lib/types"
 
 export async function GET(request: NextRequest) {
@@ -11,7 +12,7 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get("search") || ""
     const searchType = searchParams.get("searchType") || "name"
 
-    const where: PatientWhereInput = { isDeleted: { isSet: false } }
+    const where: PatientWhereInput = { OR: [{ isDeleted: { isSet: false } }, { isDeleted: false }] }
     if (search) {
       if (searchType === "uhid") {
         where.uhid = { contains: search, mode: "insensitive" }
@@ -20,6 +21,24 @@ export async function GET(request: NextRequest) {
       } else {
         where.name = { contains: search, mode: "insensitive" }
       }
+    }
+
+    // A doctor may only see patients assigned to them — i.e. patients they
+    // have an appointment, admission, or consultation with. Everyone else
+    // keeps the existing unrestricted list.
+    const authUser = await getAuthUser(request)
+    if (authUser?.role === "doctor") {
+      const doctor = await prisma.doctor.findUnique({ where: { userId: authUser.id }, select: { id: true } })
+      const doctorId = doctor?.id ?? "__none__"
+      where.AND = [
+        {
+          OR: [
+            { appointments: { some: { doctorId } } },
+            { admissions: { some: { doctorId } } },
+            { consultations: { some: { doctorId } } },
+          ],
+        },
+      ]
     }
 
     const patients = await prisma.patient.findMany({
@@ -33,7 +52,7 @@ export async function GET(request: NextRequest) {
         // status on the Patients list (Scheduled / In Queue / In Progress /
         // Completed). Additive, does not change existing fields.
         appointments: {
-          where: { isDeleted: { isSet: false } },
+          where: { OR: [{ isDeleted: { isSet: false } }, { isDeleted: false }] },
           orderBy: [{ date: "desc" }, { createdAt: "desc" }],
           take: 1,
           select: { status: true, date: true },
@@ -66,7 +85,7 @@ export async function POST(request: NextRequest) {
     const { name, mobile, gender, dateOfBirth, age, address, bloodGroup, emergencyContact, emergencyContactNumber } = parsed.data
 
     const existingPatient = await prisma.patient.findFirst({
-      where: { mobile, isDeleted: { isSet: false } },
+      where: { mobile, OR: [{ isDeleted: { isSet: false } }, { isDeleted: false }] },
       select: { id: true, uhid: true, name: true },
     })
     if (existingPatient) {

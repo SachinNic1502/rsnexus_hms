@@ -26,12 +26,12 @@ export async function GET(
     // Patient is resolved separately — some invoices point at a patientId
     // whose Patient no longer exists, and Prisma's include throws "Field
     // patient is required ... got null" the moment one of those is touched.
+    // Unlike clinical records, an invoice still represents real money owed
+    // or collected, so it's never hidden here — a fallback name is used
+    // instead of 404ing an otherwise-valid, payable invoice.
     const patient = await prisma.patient.findUnique({ where: { id: invoice.patientId } })
-    if (!patient) {
-      return NextResponse.json({ error: "Invoice not found" }, { status: 404 })
-    }
 
-    return NextResponse.json({ ...invoice, patient })
+    return NextResponse.json({ ...invoice, patient: patient ?? { name: "Unknown patient", uhid: "-" } })
   } catch (error) {
     return NextResponse.json({ error: "Failed to fetch invoice" }, { status: 500 })
   }
@@ -92,7 +92,7 @@ export async function PUT(
 
     const patient = await prisma.patient.findUnique({ where: { id: invoice.patientId } })
 
-    return NextResponse.json({ ...invoice, patient })
+    return NextResponse.json({ ...invoice, patient: patient ?? { name: "Unknown patient", uhid: "-" } })
   } catch (error) {
     return NextResponse.json({ error: "Failed to update invoice" }, { status: 500 })
   }

@@ -73,14 +73,22 @@ export async function GET(
     const { id } = await params
     const report = await prisma.labReport.findUnique({
       where: { labOrderId: id },
-      include: { labOrder: { include: { patient: true, tests: true } } },
+      include: { labOrder: { include: { tests: true } } },
     })
 
     if (!report) {
       return NextResponse.json({ error: "Report not found" }, { status: 404 })
     }
 
-    return NextResponse.json(report)
+    // Patient is resolved separately — some lab orders point at a patientId
+    // whose Patient no longer exists, and Prisma's include throws "Field
+    // patient is required ... got null" the moment one of those is touched.
+    const patient = await prisma.patient.findUnique({ where: { id: report.labOrder.patientId } })
+    if (!patient) {
+      return NextResponse.json({ error: "Report not found" }, { status: 404 })
+    }
+
+    return NextResponse.json({ ...report, labOrder: { ...report.labOrder, patient } })
   } catch (error) {
     return NextResponse.json({ error: "Failed to fetch report" }, { status: 500 })
   }

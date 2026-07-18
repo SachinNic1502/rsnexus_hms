@@ -100,7 +100,6 @@ export async function POST(
       return tx.admission.findUnique({
         where: { id },
         include: {
-          patient: true,
           doctor: { include: { user: true } },
           ward: true,
           room: true,
@@ -109,7 +108,12 @@ export async function POST(
       })
     })
 
-    return NextResponse.json(allocated, { status: 200 })
+    // Patient is resolved separately — some admissions point at a patientId
+    // whose Patient no longer exists, and Prisma's include throws "Field
+    // patient is required ... got null" the moment one of those is touched.
+    const allocatedPatient = allocated ? await prisma.patient.findUnique({ where: { id: allocated.patientId } }) : null
+
+    return NextResponse.json(allocated ? { ...allocated, patient: allocatedPatient } : allocated, { status: 200 })
   } catch (error) {
     if (error instanceof Error && error.message === "BED_TAKEN") {
       return NextResponse.json({ error: "Selected bed was just taken by someone else" }, { status: 409 })

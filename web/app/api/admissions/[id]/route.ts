@@ -25,7 +25,6 @@ export async function GET(
     const admission = await prisma.admission.findUnique({
       where: { id },
       include: {
-        patient: true,
         doctor: { include: { user: true } },
         ward: true,
         room: true,
@@ -44,7 +43,15 @@ export async function GET(
       return NextResponse.json({ error: "Admission not found" }, { status: 404 })
     }
 
-    return NextResponse.json(admission)
+    // Patient is resolved separately — some admissions point at a patientId
+    // whose Patient no longer exists, and Prisma's include throws "Field
+    // patient is required ... got null" the moment one of those is touched.
+    const patient = await prisma.patient.findUnique({ where: { id: admission.patientId } })
+    if (!patient) {
+      return NextResponse.json({ error: "Admission not found" }, { status: 404 })
+    }
+
+    return NextResponse.json({ ...admission, patient })
   } catch (error) {
     console.error("GET admission error:", error)
     return NextResponse.json({ error: "Failed to fetch admission" }, { status: 500 })
@@ -65,12 +72,15 @@ export async function PUT(
         return NextResponse.json({ error: "Invalid discharge data", details: parsed.error.issues }, { status: 400 })
       }
 
+      // Patient is never read below on this initial fetch (only bedId,
+      // patientId, appointmentId, invoices and status are), so it isn't
+      // included here — sidesteps a crash if the linked Patient no longer
+      // exists.
       const admission = await prisma.admission.findUnique({
         where: { id },
         include: {
           room: true,
           ward: true,
-          patient: true,
           doctor: { include: { user: true } },
           invoices: { include: { items: true } },
         },
@@ -115,7 +125,6 @@ export async function PUT(
             followUpDate: parsed.data.followUpDate ? new Date(parsed.data.followUpDate) : null,
           },
           include: {
-            patient: true,
             doctor: { include: { user: true } },
             ward: true,
             room: true,
@@ -149,7 +158,9 @@ export async function PUT(
         }
       }
 
-      return NextResponse.json({ ...updatedAdmission, invoiceId: existingInvoice?.id ?? null })
+      const dischargedPatient = await prisma.patient.findUnique({ where: { id: updatedAdmission.patientId } })
+
+      return NextResponse.json({ ...updatedAdmission, patient: dischargedPatient, invoiceId: existingInvoice?.id ?? null })
     }
 
     const parsed = updateSchema.safeParse(body)
@@ -161,7 +172,6 @@ export async function PUT(
       where: { id },
       data: parsed.data,
       include: {
-        patient: true,
         doctor: { include: { user: true } },
         ward: true,
         room: true,
@@ -169,7 +179,9 @@ export async function PUT(
       },
     })
 
-    return NextResponse.json(admission)
+    const patient = await prisma.patient.findUnique({ where: { id: admission.patientId } })
+
+    return NextResponse.json({ ...admission, patient })
   } catch (error) {
     console.error("PUT admission error:", error)
     return NextResponse.json({ error: "Failed to update admission" }, { status: 500 })

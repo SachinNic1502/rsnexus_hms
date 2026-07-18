@@ -29,16 +29,28 @@ export async function GET(request: NextRequest) {
     if (patientId) where.patientId = patientId
     if (doctorId) where.doctorId = doctorId
 
-    const consultations = await prisma.consultation.findMany({
+    // Patient is resolved separately — some consultations point at a
+    // patientId whose Patient no longer exists, and Prisma's include throws
+    // "Field patient is required ... got null" the moment one of those is
+    // touched (patient is a required relation, unlike the optional
+    // `appointment` one below, which safely returns null on its own).
+    const rawConsultations = await prisma.consultation.findMany({
       where,
       include: {
-        patient: true,
         doctor: { include: { user: true } },
         appointment: true,
         prescription: { include: { medicines: true } },
       },
       orderBy: { createdAt: "desc" },
     })
+
+    const patientIds = [...new Set(rawConsultations.map((c) => c.patientId))]
+    const patients = await prisma.patient.findMany({ where: { id: { in: patientIds } } })
+    const patientById = new Map(patients.map((p) => [p.id, p]))
+
+    const consultations = rawConsultations
+      .filter((c) => patientById.has(c.patientId))
+      .map((c) => ({ ...c, patient: patientById.get(c.patientId)! }))
 
     return NextResponse.json(consultations)
   } catch (error) {

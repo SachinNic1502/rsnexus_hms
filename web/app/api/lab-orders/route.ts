@@ -19,16 +19,26 @@ export async function GET(request: NextRequest) {
     if (status && status !== "all") where.status = status
     if (patientId) where.patientId = patientId
 
-    const labOrders = await prisma.labOrder.findMany({
+    // Patient is resolved separately — some lab orders point at a patientId
+    // whose Patient no longer exists, and Prisma's include throws "Field
+    // patient is required ... got null" the moment one of those is touched.
+    const rawLabOrders = await prisma.labOrder.findMany({
       where,
       include: {
-        patient: true,
         doctor: { include: { user: true } },
         tests: true,
         report: true,
       },
       orderBy: { orderedAt: "desc" },
     })
+
+    const patientIds = [...new Set(rawLabOrders.map((l) => l.patientId))]
+    const patients = await prisma.patient.findMany({ where: { id: { in: patientIds } } })
+    const patientById = new Map(patients.map((p) => [p.id, p]))
+
+    const labOrders = rawLabOrders
+      .filter((l) => patientById.has(l.patientId))
+      .map((l) => ({ ...l, patient: patientById.get(l.patientId)! }))
 
     return NextResponse.json(labOrders)
   } catch (error) {

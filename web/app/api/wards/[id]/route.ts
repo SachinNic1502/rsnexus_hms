@@ -26,11 +26,15 @@ export async function GET(
             beds: {
               where: { OR: [{ isDeleted: { isSet: false } }, { isDeleted: false }] },
               include: {
-                // Current occupant only (a bed has many admissions over time).
+                // Current occupant only (a bed has many admissions over
+                // time). Patient is resolved separately below — some
+                // admissions point at a patientId whose Patient no longer
+                // exists, and Prisma's include throws "Field patient is
+                // required ... got null" the moment one of those is touched.
                 admissions: {
                   where: { status: "admitted" },
                   take: 1,
-                  include: { patient: true, doctor: { include: { user: true } } },
+                  include: { doctor: { include: { user: true } } },
                 },
               },
             },
@@ -43,7 +47,27 @@ export async function GET(
       return NextResponse.json({ error: "Ward not found" }, { status: 404 })
     }
 
-    return NextResponse.json(ward)
+    const activePatientIds = [
+      ...new Set(ward.rooms.flatMap((room) => room.beds.flatMap((bed) => bed.admissions.map((a) => a.patientId)))),
+    ]
+    const activePatients = await prisma.patient.findMany({ where: { id: { in: activePatientIds } } })
+    const activePatientById = new Map(activePatients.map((p) => [p.id, p]))
+
+    const wardWithPatients = {
+      ...ward,
+      rooms: ward.rooms.map((room) => ({
+        ...room,
+        beds: room.beds.map((bed) => ({
+          ...bed,
+          admissions: bed.admissions.map((a) => ({
+            ...a,
+            patient: activePatientById.get(a.patientId) ?? { name: "Unknown patient" },
+          })),
+        })),
+      })),
+    }
+
+    return NextResponse.json(wardWithPatients)
   } catch (error) {
     console.error("GET ward error:", error)
     return NextResponse.json({ error: "Failed to fetch ward" }, { status: 500 })

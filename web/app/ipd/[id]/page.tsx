@@ -49,7 +49,11 @@ export default function AdmissionDetailPage() {
                 {!admission.bed && hasRole(['nurse', 'super_admin', 'hospital_admin']) && (
                   <Button onClick={() => setShowAllocate(true)}><Bed className="mr-2 h-4 w-4" /> Assign Ward &amp; Bed</Button>
                 )}
-                <Link href={`/ipd/${params.id}/daily-rounds`}><Button variant="outline"><Activity className="mr-2 h-4 w-4" /> Daily Round</Button></Link>
+                {/* Daily rounds only make sense once the patient has an actual
+                    bed to be rounded on. */}
+                {admission.bed && (
+                  <Link href={`/ipd/${params.id}/daily-rounds`}><Button variant="outline"><Activity className="mr-2 h-4 w-4" /> Daily Round</Button></Link>
+                )}
                 {hasRole(['doctor', 'nurse']) && (
                   <Link href={`/ipd/${params.id}/discharge`}><Button><FileText className="mr-2 h-4 w-4" /> Discharge</Button></Link>
                 )}

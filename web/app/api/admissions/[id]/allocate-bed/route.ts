@@ -50,7 +50,7 @@ export async function POST(
     // Validate the ward → room → bed relationship against the existing Ward
     // Management structure so a nurse cannot allocate a mismatched combination.
     const bed = await prisma.bed.findFirst({
-      where: { id: bedId, isDeleted: { isSet: false } },
+      where: { id: bedId, OR: [{ isDeleted: { isSet: false } }, { isDeleted: false }] },
       include: { room: true },
     })
     if (!bed) {
@@ -74,7 +74,7 @@ export async function POST(
     // the whole transaction so bed occupancy and the admission stay in sync.
     const allocated = await prisma.$transaction(async (tx) => {
       const bedGrab = await tx.bed.updateMany({
-        where: { id: bedId, status: "available", isDeleted: { isSet: false } },
+        where: { id: bedId, status: "available", OR: [{ isDeleted: { isSet: false } }, { isDeleted: false }] },
         data: { status: "occupied", currentPatientId: admission.patientId },
       })
       if (bedGrab.count === 0) {

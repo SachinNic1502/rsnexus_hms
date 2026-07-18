@@ -14,7 +14,7 @@ const createUserSchema = z.object({
 export async function GET() {
   try {
     const users = await prisma.user.findMany({
-      where: { isDeleted: { isSet: false } },
+      where: { OR: [{ isDeleted: { isSet: false } }, { isDeleted: false }] },
       select: { id: true, name: true, email: true, role: true, isActive: true, createdAt: true },
       orderBy: { name: "asc" },
     })

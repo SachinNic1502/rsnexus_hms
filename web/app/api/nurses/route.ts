@@ -25,7 +25,7 @@ const nurseSelect = {
 export async function GET() {
   try {
     const nurses = await prisma.user.findMany({
-      where: { role: "nurse", isDeleted: { isSet: false } },
+      where: { role: "nurse", OR: [{ isDeleted: { isSet: false } }, { isDeleted: false }] },
       select: nurseSelect,
       orderBy: { name: "asc" },
     })

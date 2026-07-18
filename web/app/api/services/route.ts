@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
     const includeInactive = searchParams.get("includeInactive") === "true"
     const services = await prisma.service.findMany({
       where: {
-        isDeleted: { isSet: false },
+        OR: [{ isDeleted: { isSet: false } }, { isDeleted: false }],
         ...(includeInactive ? {} : { isActive: true }),
       },
       orderBy: { name: "asc" },

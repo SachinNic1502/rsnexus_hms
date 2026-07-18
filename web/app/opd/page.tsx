@@ -53,6 +53,8 @@ export default function OPDPage() {
   const { user } = useAuth()
   const canConsult = user?.role !== 'super_admin'
   const canInitiateConsult = canConsult && user?.role !== 'nurse'
+  // Check-in is a front-desk/receptionist action, not an admin one.
+  const isAdmin = user?.role === 'super_admin' || user?.role === 'hospital_admin'
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [loading, setLoading] = useState(true)
   const [admissions, setAdmissions] = useState<Admission[]>([])
@@ -161,7 +163,7 @@ export default function OPDPage() {
                   </div>
                   <div className="flex items-center gap-3" onClick={(e) => e.stopPropagation()}>
                     <Badge variant={getStatusColor(apt.status) as "default" | "secondary" | "destructive" | "outline" | "success" | "warning"}>{apt.status.replace('_', ' ')}</Badge>
-                    {apt.status === 'scheduled' && (
+                    {apt.status === 'scheduled' && !isAdmin && (
                       <Button size="sm" onClick={() => updateStatus(apt.id, 'waiting')}>Check In</Button>
                     )}
                     {apt.status === 'waiting' && canInitiateConsult && (

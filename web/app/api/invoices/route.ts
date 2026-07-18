@@ -29,6 +29,9 @@ export async function GET(request: NextRequest) {
     // Patient is resolved separately — some invoices point at a patientId
     // whose Patient no longer exists, and Prisma's include throws "Field
     // patient is required ... got null" the moment one of those is touched.
+    // Unlike clinical records, an invoice still represents real money owed
+    // or collected, so it's never dropped from the list here — a fallback
+    // name is used instead of hiding the invoice.
     const rawInvoices = await prisma.invoice.findMany({
       where,
       include: {
@@ -42,9 +45,10 @@ export async function GET(request: NextRequest) {
     const patients = await prisma.patient.findMany({ where: { id: { in: patientIds } } })
     const patientById = new Map(patients.map((p) => [p.id, p]))
 
-    const invoices = rawInvoices
-      .filter((i) => patientById.has(i.patientId))
-      .map((i) => ({ ...i, patient: patientById.get(i.patientId)! }))
+    const invoices = rawInvoices.map((i) => ({
+      ...i,
+      patient: patientById.get(i.patientId) ?? { name: "Unknown patient", uhid: "-" },
+    }))
 
     return NextResponse.json(invoices)
   } catch (error) {
